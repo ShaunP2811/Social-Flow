@@ -1,0 +1,74 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg: #FAFBFF;
+    --card: #FFFFFF;
+    --ink: #0F172A;
+    --ink-muted: #64748B;
+    --border: #F1F5F9;
+    --accent: #4F46E5;
+    --neon: #10B981;
+    --f-mono: 'JetBrains Mono', monospace;
+    --f-sans: 'Inter', sans-serif;
+    --f-display: 'Outfit', sans-serif;
+  }
+
+  .dark {
+    --bg: #020617;
+    --card: #0F172A;
+    --ink: #F1F5F9;
+    --ink-muted: #94A3B8;
+    --border: #1E293B;
+    --accent: #6366F1;
+  }
+
+  body {
+    @apply antialiased bg-[var(--bg)] text-[var(--ink)] font-sans transition-colors duration-300;
+  }
+}
+
+@layer utilities {
+  .font-mono { font-family: var(--f-mono); }
+  .font-display { font-family: var(--f-display); }
+
+  .glass {
+    @apply bg-[var(--card)]/70 backdrop-blur-xl border border-[var(--border)] shadow-xl;
+  }
+
+  .matrix-bg {
+    background-image: 
+      radial-gradient(circle at 2px 2px, color-mix(in srgb, var(--accent), transparent 90%) 1px, transparent 0);
+    background-size: 24px 24px;
+  }
+
+  .neural-card {
+    @apply bg-[var(--card)] border border-[var(--border)] rounded-[2rem] p-8 transition-all hover:border-indigo-600/30 hover:shadow-2xl hover:shadow-indigo-500/5;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--ink-muted), transparent 70%);
+    border-radius: 10px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--accent);
+  }
+}

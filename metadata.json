@@ -1,0 +1,8 @@
+{
+  "name": "SocialFlow Automate",
+  "description": "Automate social media responses, comments, and messages with keyword triggers and dynamic reply variations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

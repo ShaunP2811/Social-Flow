@@ -1,0 +1,79 @@
+{
+  "entities": {
+    "Automation": {
+      "title": "Automation",
+      "description": "A social media automation workflow",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "status": { "type": "string", "enum": ["Active", "Paused", "Inactive"] },
+        "trigger": { "type": "string" },
+        "executions": { "type": "number" },
+        "lastRun": { "type": "string" },
+        "color": { "type": "string" },
+        "userId": { "type": "string" },
+        "details": {
+          "type": "object",
+          "properties": {
+            "triggerConditions": { "type": "array", "items": { "type": "string" } },
+            "aiModel": { "type": "string" },
+            "metrics": {
+              "type": "object",
+              "properties": {
+                "successRate": { "type": "string" },
+                "latency": { "type": "string" },
+                "costPerRun": { "type": "string" }
+              }
+            }
+          }
+        }
+      },
+      "required": ["name", "status", "userId"]
+    },
+    "KeywordResponder": {
+      "title": "Keyword Responder",
+      "description": "Triggered response based on keywords",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "keyword": { "type": "string" },
+        "response": { "type": "string" },
+        "platform": { "type": "string", "enum": ["Instagram", "Facebook", "All"] },
+        "type": { "type": "string", "enum": ["Post", "Reel", "DM"] },
+        "userId": { "type": "string" },
+        "postIds": { "type": "array", "items": { "type": "string" } },
+        "active": { "type": "boolean" }
+      },
+      "required": ["keyword", "response", "userId"]
+    },
+    "Log": {
+      "title": "Execution Log",
+      "description": "History of automation executions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "automationId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "status": { "type": "string" },
+        "details": { "type": "string" },
+        "userId": { "type": "string" }
+      },
+      "required": ["automationId", "timestamp", "userId"]
+    }
+  },
+  "firestore": {
+    "/automations/{automationId}": {
+      "schema": "Automation",
+      "description": "Collection of user automations"
+    },
+    "/responders/{responderId}": {
+      "schema": "KeywordResponder",
+      "description": "Collection of keyword triggers"
+    },
+    "/logs/{logId}": {
+      "schema": "Log",
+      "description": "Automation execution logs"
+    }
+  }
+}

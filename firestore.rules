@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Master Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helpers
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Entity Validations
+    function isValidAutomation(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.status in ['Active', 'Paused', 'Inactive']
+        && data.userId == request.auth.uid;
+    }
+
+    function isValidResponder(data) {
+      return data.keyword is string && data.keyword.size() > 0 && data.keyword.size() <= 50
+        && data.response is string && data.response.size() > 0 && data.response.size() <= 1000
+        && data.platform in ['Instagram', 'Facebook', 'All']
+        && data.userId == request.auth.uid;
+    }
+
+    match /automations/{automationId} {
+      allow get, delete: if isOwner(resource.data.userId);
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidAutomation(request.resource.data);
+      allow update: if isOwner(resource.data.userId) 
+        && isValidAutomation(request.resource.data)
+        && request.resource.data.userId == resource.data.userId;
+    }
+
+    match /responders/{responderId} {
+      allow get, delete: if isOwner(resource.data.userId);
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidResponder(request.resource.data);
+      allow update: if isOwner(resource.data.userId)
+        && isValidResponder(request.resource.data)
+        && request.resource.data.userId == resource.data.userId;
+    }
+
+    match /logs/{logId} {
+      allow get: if isOwner(resource.data.userId);
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow delete: if false; // Logs are immutable
+    }
+  }
+}
