@@ -1,6 +1,6 @@
 {
-  "name": "SocialFlow Automate",
-  "description": "Automate social media responses, comments, and messages with keyword triggers and dynamic reply variations.",
+  "name": "SocialFlow Automate Hub",
+  "description": "Production-grade social automation hub with AI keyword discovery, verification workflows, bulk management, and real-time response auditing.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

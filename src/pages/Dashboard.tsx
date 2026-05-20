@@ -125,9 +125,9 @@ export default function Dashboard() {
       {/* Hero Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard title="Total Triggers" value="4,285" change="+12%" icon={Zap} color="text-indigo-600" bg="bg-indigo-50" />
-        <StatCard title="Success Rate" value="98.5%" change="+0.4%" icon={Activity} color="text-emerald-600" bg="bg-emerald-50" />
-        <StatCard title="Active Responders" value="24" change="+3" icon={Sparkles} color="text-amber-600" bg="bg-amber-50" />
-        <StatCard title="Saved Hours" value="184" change="+18%" icon={Users} color="text-cyan-600" bg="bg-cyan-50" />
+        <StatCard title="AI Accuracy" value="94.2%" change="+2.1%" icon={Activity} color="text-emerald-600" bg="bg-emerald-50" />
+        <StatCard title="Audited Logs" value="1,284" change="+142" icon={ShieldCheck} color="text-amber-600" bg="bg-amber-50" />
+        <StatCard title="Response Time" value="0.8s" change="-0.2s" icon={TrendingUp} color="text-cyan-600" bg="bg-cyan-50" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -332,26 +332,50 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Health Checks */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {[
-          { label: 'Instagram API', status: 'Good', icon: ShieldCheck },
-          { label: 'Automation Engine', status: 'Working', icon: Zap },
-          { label: 'Database', status: 'Fast', icon: Activity },
-        ].map((item, i) => (
-          <div key={i} className="flex items-center justify-between p-6 bg-[var(--card)] border border-[var(--border)] rounded-3xl">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-[var(--bg)] rounded-2xl flex items-center justify-center text-[var(--ink-muted)]">
-                <item.icon className="w-5 h-5" />
+      {/* Health Checks & Team Spotlight */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[
+            { label: 'Instagram API', status: 'Good', icon: ShieldCheck },
+            { label: 'Automation Engine', status: 'Working', icon: Zap },
+            { label: 'Database', status: 'Fast', icon: Activity },
+          ].map((item, i) => (
+            <div key={i} className="flex items-center justify-between p-6 bg-[var(--card)] border border-[var(--border)] rounded-3xl">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-[var(--bg)] rounded-2xl flex items-center justify-center text-[var(--ink-muted)]">
+                  <item.icon className="w-5 h-5" />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-[10px] font-black text-[var(--ink-muted)] uppercase tracking-widest">{item.label}</p>
+                  <p className="text-sm font-black text-[var(--ink)] tracking-tight">{item.status}</p>
+                </div>
               </div>
-              <div className="space-y-0.5">
-                <p className="text-[10px] font-black text-[var(--ink-muted)] uppercase tracking-widest">{item.label}</p>
-                <p className="text-sm font-black text-[var(--ink)] tracking-tight">{item.status}</p>
-              </div>
+              <div className="w-2 h-2 rounded-full bg-emerald-500" />
             </div>
-            <div className="w-2 h-2 rounded-full bg-emerald-500" />
+          ))}
+        </div>
+
+        <div className="neural-card p-6 flex flex-col gap-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Users className="w-4 h-4 text-indigo-500" />
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--ink)]">Top Auditors</h4>
           </div>
-        ))}
+          {[
+            { name: 'Sarah C.', audits: 142, avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100' },
+            { name: 'Mike R.', audits: 98, avatar: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=100' },
+            { name: 'Alex V.', audits: 76, avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100' },
+          ].map((member, i) => (
+            <div key={i} className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full border-2 border-indigo-500/10 overflow-hidden">
+                  <img src={member.avatar} alt="" className="w-full h-full object-cover" />
+                </div>
+                <span className="text-xs font-bold text-[var(--ink)]">{member.name}</span>
+              </div>
+              <span className="text-[10px] font-black text-indigo-500 font-mono italic">{member.audits}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

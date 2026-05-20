@@ -134,7 +134,16 @@ export default function Templates({ onClose, onSelect }: { onClose?: () => void,
         </div>
 
         <div className="flex items-center gap-6">
-          <button className="flex items-center gap-3 px-8 py-4 bg-slate-900 dark:bg-indigo-600 text-white rounded-[1.2rem] text-[10px] font-black uppercase tracking-widest shadow-2xl shadow-indigo-500/10 hover:bg-indigo-600 transition-all hover:-translate-y-0.5 active:scale-95">
+          <button 
+            onClick={() => onSelect?.({ 
+              id: 'SCRATCH', 
+              title: 'Custom Template', 
+              description: 'Create from scratch', 
+              goal: 'Engage', 
+              trigger: 'DM' 
+            })}
+            className="flex items-center gap-3 px-8 py-4 bg-slate-900 dark:bg-indigo-600 text-white rounded-[1.2rem] text-[10px] font-black uppercase tracking-widest shadow-2xl shadow-indigo-500/10 hover:bg-indigo-600 transition-all hover:-translate-y-0.5 active:scale-95"
+          >
             <Plus className="w-4 h-4" />
             New Custom
           </button>
