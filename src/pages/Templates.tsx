@@ -28,6 +28,13 @@ interface Template {
 
 const templates: Template[] = [
   {
+    id: 'SCRATCH',
+    title: 'Start from Scratch',
+    description: 'Begin with a blank canvas and construct your own dynamic keyword trigger automations manually.',
+    goal: 'Engage',
+    trigger: 'DM'
+  },
+  {
     id: '1',
     title: 'DM Auto-Reply',
     description: 'Automatically reply to messages based on post comments.',
@@ -246,6 +253,7 @@ export default function Templates({ onClose, onSelect }: { onClose?: () => void,
 }
 
 function TemplateCard({ template, featured, onClick }: { template: Template, featured?: boolean, onClick?: () => void }) {
+  const isScratch = template.id === 'SCRATCH';
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -254,17 +262,21 @@ function TemplateCard({ template, featured, onClick }: { template: Template, fea
       onClick={onClick}
       className={cn(
         "bg-[var(--card)] border rounded-[2.5rem] p-10 transition-all cursor-pointer group flex flex-col min-h-[300px] relative overflow-hidden",
-        featured ? "border-indigo-500 shadow-2xl shadow-indigo-500/10 dark:shadow-none" : "border-[var(--border)] hover:border-indigo-200/50 hover:shadow-2xl hover:shadow-indigo-500/5"
+        isScratch 
+          ? "border-dashed border-indigo-400 hover:border-indigo-600 bg-indigo-50/5 hover:shadow-2xl hover:shadow-indigo-500/5 dark:bg-indigo-950/5"
+          : featured 
+            ? "border-indigo-500 shadow-2xl shadow-indigo-500/10 dark:shadow-none" 
+            : "border-[var(--border)] hover:border-indigo-200/50 hover:shadow-2xl hover:shadow-indigo-500/5"
       )}
     >
       <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-[40px] -mr-16 -mt-16 group-hover:bg-indigo-500/10 transition-colors" />
 
       <div className="space-y-4 flex-1 relative z-10">
         <div className="flex items-center gap-3">
-           <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", featured ? 'bg-indigo-600 text-white' : 'bg-[var(--bg)] text-[var(--ink-muted)] group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors')}>
-              <Zap className="w-5 h-5" />
+           <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", isScratch ? 'bg-indigo-500 text-white shadow-lg' : featured ? 'bg-indigo-600 text-white' : 'bg-[var(--bg)] text-[var(--ink-muted)] group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors')}>
+              {isScratch ? <Plus className="w-5 h-5 font-black" /> : <Zap className="w-5 h-5" />}
            </div>
-           <p className="text-[9px] font-black text-indigo-500/60 uppercase tracking-[0.3em] italic">{template.trigger} Trigger</p>
+           <p className="text-[9px] font-black text-indigo-500/60 uppercase tracking-[0.3em] italic">{isScratch ? 'Custom Mode' : `${template.trigger} Trigger`}</p>
         </div>
         <h3 className="text-2xl font-black text-[var(--ink)] italic tracking-tighter leading-tight group-hover:text-indigo-600 transition-colors">
           {template.title}
@@ -277,18 +289,21 @@ function TemplateCard({ template, featured, onClick }: { template: Template, fea
       <div className="mt-10 pt-6 border-t border-[var(--border)] flex items-center justify-between relative z-10">
         <div className="flex items-center gap-3 text-[10px] font-black text-[var(--ink-muted)] opacity-50 uppercase tracking-widest italic group-hover:text-indigo-400 group-hover:opacity-100 transition-all">
           <ArrowUpRight className="w-4 h-4" />
-          Use This
+          {isScratch ? 'Blank Canvas' : 'Use This'}
         </div>
         <div className="flex gap-2">
           {template.isPopular && (
             <span className="text-[8px] font-black text-orange-600 bg-orange-500/10 px-3 py-1 rounded-full uppercase tracking-widest border border-orange-500/20 shadow-sm">POPULAR</span>
+          )}
+          {isScratch && (
+            <span className="text-[8px] font-black text-indigo-600 bg-indigo-500/10 px-3 py-1 rounded-full uppercase tracking-widest border border-indigo-500/20 shadow-sm font-mono">NEW</span>
           )}
         </div>
       </div>
       
       <div className="mt-8 opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all relative z-10">
         <button className="w-full py-4 bg-slate-900 dark:bg-indigo-600 text-white rounded-[1.2rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl hover:bg-indigo-600 dark:hover:bg-indigo-500 transition-all">
-          Select
+          {isScratch ? 'Start Blank' : 'Select'}
         </button>
       </div>
     </motion.div>
