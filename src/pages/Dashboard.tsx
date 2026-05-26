@@ -23,7 +23,10 @@ import {
   HelpCircle,
   Hash,
   Instagram,
-  Facebook
+  Facebook,
+  Database,
+  Clock,
+  Timer
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
@@ -241,6 +244,133 @@ const EventLog = ({
                 </button>
               ))}
             </div>
+
+            <div className="flex flex-col gap-1.5 pt-2 border-t border-[var(--border)] border-dashed">
+              <span className="text-[8px] font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest flex items-center gap-1.5">
+                <AlertCircle className="w-3 h-3 animate-pulse" />
+                Simulate System Incident
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  const errorId = 'live_' + Math.floor(Math.random() * 100000);
+                  const errorLog = {
+                    id: errorId,
+                    time: new Date().toTimeString().split(' ')[0],
+                    event: `Audit notice: Verification mismatch for rule CUSTOM_MANUAL_SIM`,
+                    type: 'Error',
+                    platform: manualPlatform,
+                    user: manualUser,
+                    status: 'Audit Needed',
+                    matched: 'CUSTOM_MANUAL_SIM',
+                    duration: '0.94s',
+                    payload: `Manual simulation of critical verification failure: User comment "${manualText || 'No message entered'}" matched automated flow but failed parity check.`
+                  };
+                  
+                  // Insert simulated log block
+                  window.dispatchEvent(new CustomEvent('insert-simulated-log', { detail: errorLog }));
+                  
+                  // Trigger toast notification
+                  window.dispatchEvent(
+                    new CustomEvent('social-flow-toast', {
+                      detail: {
+                        id: errorId,
+                        title: "Automation Rule Execution Failed",
+                        message: `Parity verification audit mismatch for user ${manualUser} on ${manualPlatform}. Raised record #${errorId}.`,
+                        type: "error",
+                        duration: 8000
+                      }
+                    })
+                  );
+                }}
+                className="w-full text-center px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-extrabold text-[8px] uppercase tracking-widest rounded-xl border border-rose-500/20 transition-all cursor-pointer hover:scale-102 active:scale-98"
+              >
+                Force Simulated Rule Match Audit Error
+              </button>
+
+              <div className="h-[1px] bg-[var(--border)] border-dashed my-1" />
+
+              <span className="text-[8px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                Simulate Platform API Call
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const apiId = 'api_' + Math.floor(Math.random() * 100000);
+                    const now = new Date();
+                    const timeStr = now.toTimeString().split(' ')[0];
+                    const endpoint = manualPlatform === 'Instagram' ? 'graph.instagram.com/v16.0/me/messages' : 'graph.facebook.com/v16.0/me/messages';
+                    const successLog = {
+                      id: apiId,
+                      time: timeStr,
+                      event: `POST /${manualPlatform === 'Instagram' ? 'ig' : 'fb'}/messages (SUCCESS - 200 OK)`,
+                      type: 'API Call',
+                      platform: manualPlatform,
+                      user: 'META_GRAPH_API',
+                      status: 'Success',
+                      matched: 'N/A',
+                      duration: (0.2 + Math.random() * 0.4).toFixed(2) + 's',
+                      payload: `Request Endpoint: POST https://${endpoint}\nRecipient User: ${manualUser}\nMessage Body: {"messaging_type": "RESPONSE", "recipient": {"id": "usr_${Math.floor(Math.random()*10000)}"}, "message": {"text": "${manualText || 'Our product catalog has been successfully sent to your Direct Messages!'}"}}\n\nResponse 200 OK:\n{\n  "recipient_id": "usr_${Math.floor(Math.random()*10000)}",\n  "message_id": "mid.api_${Math.floor(Math.random()*100000)}"\n}`
+                    };
+
+                    window.dispatchEvent(new CustomEvent('insert-simulated-log', { detail: successLog }));
+                    window.dispatchEvent(
+                      new CustomEvent('social-flow-toast', {
+                        detail: {
+                          id: apiId,
+                          title: "API Call Successful",
+                          message: `Dispatched comments-to-DMs payload to Meta Graph API for user ${manualUser} on ${manualPlatform}.`,
+                          type: "success",
+                          duration: 4000
+                        }
+                      })
+                    );
+                  }}
+                  className="w-full text-center px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-extrabold text-[8px] uppercase tracking-widest rounded-xl border border-emerald-500/20 transition-all cursor-pointer hover:scale-102 active:scale-98"
+                >
+                  API Success
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const apiId = 'api_' + Math.floor(Math.random() * 100000);
+                    const now = new Date();
+                    const timeStr = now.toTimeString().split(' ')[0];
+                    const endpoint = manualPlatform === 'Instagram' ? 'graph.instagram.com/v16.0/me/messages' : 'graph.facebook.com/v16.0/me/messages';
+                    const failedLog = {
+                      id: apiId,
+                      time: timeStr,
+                      event: `POST /${manualPlatform === 'Instagram' ? 'ig' : 'fb'}/messages (FAILED - 401 Unauthorized)`,
+                      type: 'API Call',
+                      platform: manualPlatform,
+                      user: 'META_GRAPH_API',
+                      status: 'Audit Needed',
+                      matched: 'N/A',
+                      duration: (0.6 + Math.random() * 0.6).toFixed(2) + 's',
+                      payload: `Request Endpoint: POST https://${endpoint}\nRecipient User: ${manualUser}\nMessage Body: {"messaging_type": "RESPONSE", "recipient": {"id": "usr_${Math.floor(Math.random()*10000)}"}, "message": {"text": "Manual API template payload content."}}\n\nResponse 401 Unauthorized:\n{\n  "error": {\n    "message": "Error validating access token: Session has expired or is otherwise invalid on current page node.",\n    "type": "OAuthException",\n    "code": 190,\n    "error_subcode": 463,\n    "fbtrace_id": "FBT_${Math.floor(Math.random()*100000)}" \n  }\n}`
+                    };
+
+                    window.dispatchEvent(new CustomEvent('insert-simulated-log', { detail: failedLog }));
+                    window.dispatchEvent(
+                      new CustomEvent('social-flow-toast', {
+                        detail: {
+                          id: apiId,
+                          title: "External API Call Failed",
+                          message: `Meta OAuth validation failed with 401 Unauthorized error code 190 for user ${manualUser}.`,
+                          type: "error",
+                          duration: 7500
+                        }
+                      })
+                    );
+                  }}
+                  className="w-full text-center px-2 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-extrabold text-[8px] uppercase tracking-widest rounded-xl border border-rose-500/20 transition-all cursor-pointer hover:scale-102 active:scale-98"
+                >
+                  API Failure
+                </button>
+              </div>
+            </div>
           </form>
         )}
       </div>
@@ -266,7 +396,7 @@ const EventLog = ({
         </div>
         <div className="flex flex-wrap gap-1.5 items-center">
           <span className="text-[7.5px] font-black text-[var(--ink-muted)] uppercase tracking-[0.2em] w-12">Action:</span>
-          {['All', 'Reply', 'Flow', 'Post', 'System', 'Error'].map((t: any) => (
+          {['All', 'Reply', 'Flow', 'Post', 'System', 'API Call', 'Error'].map((t: any) => (
             <button
               key={t}
               onClick={() => setFilterType(t)}
@@ -330,7 +460,9 @@ const EventLog = ({
                               ? "bg-indigo-500/10 text-indigo-500"
                               : log.type === 'Flow'
                                 ? "bg-amber-500/10 text-amber-500"
-                                : "bg-teal-500/10 text-teal-500"
+                                : log.type === 'API Call'
+                                  ? "bg-purple-500/10 text-purple-500"
+                                  : "bg-teal-500/10 text-teal-500"
                         )}>
                           {log.type}
                         </span>
@@ -406,30 +538,187 @@ const EventLog = ({
   );
 };
 
-export default function Dashboard() {
+export default function Dashboard({ activeAccount = "Instagram: @social_flow" }: { activeAccount?: string }) {
   const [totalTriggers, setTotalTriggers] = React.useState(4285);
   const [aiAccuracy, setAiAccuracy] = React.useState(94.2);
   const [responseTime, setResponseTime] = React.useState(0.8);
   const [auditedLogs, setAuditedLogs] = React.useState(1284);
   const [isLive, setIsLive] = React.useState(true);
+  const [showAdvisor, setShowAdvisor] = React.useState(true);
+  
+  // Supabase Auto-Sync States
+  const [isSyncing, setIsSyncing] = React.useState(false);
+  const [isAutoSyncActive, setIsAutoSyncActive] = React.useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("supabase_auto_sync_active") === "true";
+    }
+    return false;
+  });
+  const [lastSyncTime, setLastSyncTime] = React.useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("supabase_last_sync_time") || null;
+    }
+    return null;
+  });
+  const [syncIntervalVal, setSyncIntervalVal] = React.useState<number>(() => {
+    if (typeof window !== "undefined") {
+      return Number(localStorage.getItem("supabase_auto_sync_interval")) || 30;
+    }
+    return 30;
+  });
+  const [countdown, setCountdown] = React.useState<number | null>(null);
+
+  const runBackgroundSync = async () => {
+    if (isSyncing) return;
+    setIsSyncing(true);
+    window.dispatchEvent(new CustomEvent("social-flow-sync", { detail: { status: true } }));
+    try {
+      const response = await fetch('/api/automations');
+      if (response.ok) {
+        const rules = await response.json();
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        
+        localStorage.setItem("supabase_last_sync_time", timeStr);
+        localStorage.setItem("supabase_last_sync_timestamp", String(now.getTime()));
+        setLastSyncTime(timeStr);
+
+        window.dispatchEvent(
+          new CustomEvent("social-flow-toast", {
+            detail: {
+              title: "Periodic Rules Synced",
+              message: `Successfully loaded ${rules.length || 0} rules from the Supabase database.`,
+              type: "success",
+              duration: 3000
+            }
+          })
+        );
+      }
+    } catch (err) {
+      console.error("Dashboard background sync failed", err);
+    } finally {
+      setIsSyncing(false);
+      window.dispatchEvent(new CustomEvent("social-flow-sync", { detail: { status: false } }));
+    }
+  };
+
+  React.useEffect(() => {
+    if (!isAutoSyncActive) {
+      setCountdown(null);
+      return;
+    }
+
+    // Set first countdown immediately based on existing timestamp
+    const updateCountdown = () => {
+      const lastSyncTsStr = localStorage.getItem("supabase_last_sync_timestamp");
+      if (!lastSyncTsStr) {
+        runBackgroundSync();
+        return;
+      }
+      const lastSyncTs = Number(lastSyncTsStr);
+      const elapsedSeconds = Math.floor((Date.now() - lastSyncTs) / 1000);
+      const remaining = syncIntervalVal - elapsedSeconds;
+
+      if (remaining <= 0) {
+        runBackgroundSync();
+      } else {
+        setCountdown(remaining);
+      }
+    };
+
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(timer);
+  }, [isAutoSyncActive, syncIntervalVal, isSyncing]);
+
+  React.useEffect(() => {
+    let syncAnimTimeout: any = null;
+
+    const checkSyncStatus = () => {
+      if (typeof window !== "undefined") {
+        const active = localStorage.getItem("supabase_auto_sync_active") === "true";
+        const lastSync = localStorage.getItem("supabase_last_sync_time") || null;
+        const interval = Number(localStorage.getItem("supabase_auto_sync_interval")) || 30;
+        
+        setIsAutoSyncActive(active);
+        setLastSyncTime(lastSync);
+        setSyncIntervalVal(interval);
+      }
+    };
+    
+    checkSyncStatus();
+    
+    // Listen for events dispatched from Settings to immediately adapt
+    const handleSyncChange = () => {
+      checkSyncStatus();
+      setIsSyncing(true);
+      if (syncAnimTimeout) clearTimeout(syncAnimTimeout);
+      syncAnimTimeout = setTimeout(() => {
+        setIsSyncing(false);
+      }, 1000);
+    };
+
+    window.addEventListener("social-flow-toast", handleSyncChange);
+    window.addEventListener("social-flow-sync", handleSyncChange);
+    window.addEventListener("storage", handleSyncChange);
+    
+    const intervalId = setInterval(checkSyncStatus, 2000);
+    
+    return () => {
+      window.removeEventListener("social-flow-toast", handleSyncChange);
+      window.removeEventListener("social-flow-sync", handleSyncChange);
+      window.removeEventListener("storage", handleSyncChange);
+      clearInterval(intervalId);
+      if (syncAnimTimeout) clearTimeout(syncAnimTimeout);
+    };
+  }, []);
   
   // Real-time Event log state
   const [logs, setLogs] = React.useState<any[]>(() => [
     { id: 'l1', time: '12:42:04', event: 'Keyword "PRICE" used in DM', type: 'Reply', platform: 'Instagram', user: '@sophie_k', status: 'Success', matched: 'PRICE', duration: '0.78s', payload: 'Original content: "Hi, what is the price of the monthly subscription?" -> Generated Automatic Dispatch: "Our monthly plan starts at $29. Check it out at neural.hub/pricing"' },
+    { id: 'l_api_1', time: '12:41:58', event: 'POST /ig/messages (SUCCESS - 200 OK)', type: 'API Call', platform: 'Instagram', user: 'META_GRAPH_API', status: 'Success', matched: 'N/A', duration: '0.34s', payload: 'Request Endpoint: POST https://graph.instagram.com/v16.0/me/messages\nRecipient User: @sophie_k\nMessage Body: {"messaging_type": "RESPONSE", "recipient": {"id": "usr_94382"}, "message": {"text": "Our monthly plan starts at $29. Check it out at neural.hub/pricing"}}\n\nResponse 200 OK:\n{\n  "recipient_id": "usr_94382",\n  "message_id": "mid.api_84310"\n}' },
     { id: 'l2', time: '12:41:55', event: 'Sending automated template via rule #4', type: 'Flow', platform: 'Instagram', user: '@brand_builder_m', status: 'Success', matched: 'N/A', duration: '0.82s', payload: 'Dispatched template asset: [onboarding_flow_v2]' },
     { id: 'l3', time: '12:41:50', event: 'New lead comments match rule #1', type: 'Post', platform: 'Facebook', user: '@daniel.m', status: 'Success', matched: 'LOCATION', duration: '0.90s', payload: 'Original content: "Where are you guys located?" -> Generated Response: "We are located at 123 Neural St, Matrix City! Open 24/7."' },
+    { id: 'l_api_2', time: '12:41:12', event: 'POST /fb/messages (FAILED - 400 Bad Request)', type: 'API Call', platform: 'Facebook', user: 'META_GRAPH_API', status: 'Audit Needed', matched: 'N/A', duration: '1.12s', payload: 'Request Endpoint: POST https://graph.facebook.com/v16.0/me/messages\nRecipient User: @daniel.m\nMessage Body: {"messaging_type": "RESPONSE", "recipient": {"id": "usr_48210"}, "message": {"text": "Thank you for matching! Our AI is reviewing."}}\n\nResponse 400 Bad Request:\n{\n  "error": {\n    "message": "Error validating access token: Session has expired or is otherwise invalid or has revoked permissions.",\n    "type": "OAuthException",\n    "code": 190,\n    "error_subcode": 463,\n    "fbtrace_id": "FBT_493820"\n  }\n}' },
     { id: 'l4', time: '12:40:12', event: 'Task "Lead Gen Verification" succeeded', type: 'System', platform: 'System', user: 'SYSTEM', status: 'Success', matched: 'N/A', duration: '1.20s', payload: 'Background system trace checks completed successfully.' },
     { id: 'l5', time: '12:38:45', event: 'System check: Heartbeat healthy', type: 'System', platform: 'System', user: 'SYSTEM', status: 'Success', matched: 'N/A', duration: '0.45s', payload: 'Operational node responder report status 200.' },
   ]);
 
   const [filterPlatform, setFilterPlatform] = React.useState<'All' | 'Instagram' | 'Facebook' | 'System'>('All');
-  const [filterType, setFilterType] = React.useState<'All' | 'Reply' | 'Flow' | 'Post' | 'System' | 'Error'>('All');
+  const [filterType, setFilterType] = React.useState<'All' | 'Reply' | 'Flow' | 'Post' | 'System' | 'API Call' | 'Error'>('All');
   const [selectedLog, setSelectedLog] = React.useState<any | null>(null);
 
   // Playground form states
   const [manualUser, setManualUser] = React.useState('@clara_val');
   const [manualText, setManualText] = React.useState('');
   const [manualPlatform, setManualPlatform] = React.useState<'Instagram' | 'Facebook'>('Instagram');
+
+  const currentPlatform = activeAccount.includes("Instagram") ? "Instagram" : "Facebook";
+
+  React.useEffect(() => {
+    setFilterPlatform(currentPlatform as any);
+    setManualPlatform(currentPlatform as any);
+  }, [activeAccount, currentPlatform]);
+
+  // Insert simulated logs directly
+  React.useEffect(() => {
+    const handleInsertLog = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail) {
+        setLogs(prev => [customEvent.detail, ...prev]);
+        setTotalTriggers(prev => prev + 1);
+        setAuditedLogs(prev => prev + 1);
+        window.dispatchEvent(
+          new CustomEvent('responder-trigger-execution', { detail: customEvent.detail })
+        );
+      }
+    };
+    window.addEventListener('insert-simulated-log', handleInsertLog);
+    return () => {
+      window.removeEventListener('insert-simulated-log', handleInsertLog);
+    };
+  }, []);
 
   // Trigger generator effect
   React.useEffect(() => {
@@ -474,6 +763,7 @@ export default function Dashboard() {
     ];
 
     const generateEvent = () => {
+      const isApiCallChance = Math.random() > 0.65;
       const randomIdx = Math.floor(Math.random() * triggersPool.length);
       const randomTrigger = triggersPool[randomIdx];
       const randomUser = names[Math.floor(Math.random() * names.length)];
@@ -483,25 +773,70 @@ export default function Dashboard() {
       const timeStr = now.toTimeString().split(' ')[0];
       const isSuccess = Math.random() > 0.12; // 12% warning / audit rate
 
-      const newLog = {
-        id: 'live_' + Math.floor(Math.random() * 100000),
-        time: timeStr,
-        event: isSuccess 
-          ? `Keyword "${randomTrigger.keyword}" matched via DM`
-          : `Audit notice: Verification mismatch for rule ${randomTrigger.keyword}`,
-        type: isSuccess ? randomTrigger.type : 'Error',
-        platform,
-        user: randomUser,
-        status: isSuccess ? 'Success' : 'Audit Needed',
-        matched: randomTrigger.keyword,
-        duration: (0.4 + Math.random() * 0.8).toFixed(2) + 's',
-        payload: `Original message: "${randomTrigger.text}" -> Generated Automatic Dispatch: "${randomTrigger.response}"`
-      };
+      let newLog: any;
+
+      if (isApiCallChance) {
+        const isApiSuccess = Math.random() > 0.15;
+        const endpoint = platform === 'Instagram' ? 'graph.instagram.com/v16.0/me/messages' : 'graph.facebook.com/v16.0/me/messages';
+        newLog = {
+          id: 'live_api_' + Math.floor(Math.random() * 100000),
+          time: timeStr,
+          event: isApiSuccess 
+            ? `POST /${platform === 'Instagram' ? 'ig' : 'fb'}/messages (SUCCESS - 200 OK)`
+            : `POST /${platform === 'Instagram' ? 'ig' : 'fb'}/messages (FAILED - 400 Bad Request)`,
+          type: 'API Call',
+          platform,
+          user: 'META_GRAPH_API',
+          status: isApiSuccess ? 'Success' : 'Audit Needed',
+          matched: 'N/A',
+          duration: (0.2 + Math.random() * 0.4).toFixed(2) + 's',
+          payload: isApiSuccess
+            ? `Request URL: POST https://${endpoint}\nHeaders: {"Authorization": "Bearer EAAG..."}\nRecipient User Name: "${randomUser}"\nBody: {"messaging_type": "RESPONSE", "recipient": {"id": "usr_${Math.floor(Math.random()*10000)}"}, "message": {"text": "${randomTrigger.response}"}}\n\nResponse 200 OK:\n{\n  "recipient_id": "usr_${Math.floor(Math.random()*10000)}",\n  "message_id": "mid.api_${Math.floor(Math.random()*100000)}"\n}`
+            : `Request URL: POST https://${endpoint}\nHeaders: {"Authorization": "Bearer EAAG..."}\nRecipient User Name: "${randomUser}"\nBody: {"messaging_type": "RESPONSE", "recipient": {"id": "usr_${Math.floor(Math.random()*10000)}"}, "message": {"text": "${randomTrigger.response}"}}\n\nResponse 400 Bad Request:\n{\n  "error": {\n    "message": "The user has not logged in or active session of the page has expired.",\n    "type": "OAuthException",\n    "code": 190,\n    "error_subcode": 463,\n    "fbtrace_id": "FBT_${Math.floor(Math.random()*1000000)}"\n  }\n}`
+        };
+      } else {
+        newLog = {
+          id: 'live_' + Math.floor(Math.random() * 100000),
+          time: timeStr,
+          event: isSuccess 
+            ? `Keyword "${randomTrigger.keyword}" matched via DM`
+            : `Audit notice: Verification mismatch for rule ${randomTrigger.keyword}`,
+          type: isSuccess ? randomTrigger.type : 'Error',
+          platform,
+          user: randomUser,
+          status: isSuccess ? 'Success' : 'Audit Needed',
+          matched: randomTrigger.keyword,
+          duration: (0.4 + Math.random() * 0.8).toFixed(2) + 's',
+          payload: `Original message: "${randomTrigger.text}" -> Generated Automatic Dispatch: "${randomTrigger.response}"`
+        };
+      }
 
       setLogs(prev => {
         const withNew = [newLog, ...prev];
         return withNew.slice(0, 40); // Max 40
       });
+
+      // Dispatch real-time indicator alert
+      window.dispatchEvent(
+        new CustomEvent('responder-trigger-execution', { detail: newLog })
+      );
+
+      // Dispatch global toast on failure/audit needed
+      if (newLog.status === 'Audit Needed') {
+        window.dispatchEvent(
+          new CustomEvent('social-flow-toast', {
+            detail: {
+              id: newLog.id,
+              title: newLog.type === 'API Call' ? "External API Call Failed" : "Automation Execution Failed",
+              message: newLog.type === 'API Call'
+                ? `Meta Platform Graph OAuth verification failed for user ${randomUser}. Raising incident #${newLog.id}.`
+                : `Audit required: Rule verification mismatch on ${platform} for user ${randomUser}. Raised record #${newLog.id}.`,
+              type: "error",
+              duration: 7500
+            }
+          })
+        );
+      }
 
       // Update counters dynamically
       setTotalTriggers(prev => prev + 1);
@@ -572,11 +907,116 @@ export default function Dashboard() {
 
     setLogs(prev => [manualLog, ...prev]);
     setTotalTriggers(prev => prev + 1);
+    window.dispatchEvent(
+      new CustomEvent('responder-trigger-execution', { detail: manualLog })
+    );
     setManualText('');
   };
 
   return (
     <div className="space-y-10 matrix-bg min-h-screen pb-20">
+      {/* Dynamic Focused Header */}
+      <div className="bg-gradient-to-r from-indigo-50/50 to-indigo-100/10 dark:from-indigo-950/25 dark:to-transparent border border-indigo-100/50 dark:border-indigo-950/60 rounded-3xl p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-2">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[10px] font-black uppercase tracking-wider">
+            <Zap className="w-3.5 h-3.5" />
+            Automated Hub Context
+          </span>
+          <h1 className="text-3xl font-black text-[var(--ink)] tracking-tighter uppercase italic">
+            Workspace: {activeAccount.split(':')[1]?.trim() || activeAccount}
+          </h1>
+          <p className="text-xs text-[var(--ink-muted)] sm:text-sm font-bold leading-relaxed">
+            {activeAccount.includes("Instagram") 
+              ? "Monitoring live Instagram feeds, comments, direct messages, and automated keyword flows." 
+              : "Monitoring live Facebook updates, messenger queries, wall post comments, and active rules."}
+          </p>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          {/* Supabase Sync Status Widget */}
+          <div className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-2xl px-5 py-3 border border-indigo-500/15 text-center min-w-[130px] relative">
+            <div className="text-[9px] font-black uppercase tracking-widest text-indigo-500 flex items-center justify-center gap-1">
+              <motion.span
+                animate={isSyncing ? { rotate: 360 } : { rotate: 0 }}
+                transition={{ duration: 0.6, ease: "easeInOut" }}
+                className="inline-block shrink-0"
+              >
+                <Database className="w-3 h-3 text-indigo-500" />
+              </motion.span>
+              Sync Status
+            </div>
+            <div className="text-xs font-black flex items-center gap-1.5 justify-center mt-1 uppercase tracking-wider">
+              {isAutoSyncActive ? (
+                <div className="flex items-center gap-1.5 relative">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 text-emerald-400"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  <span className="text-emerald-500 font-extrabold text-[11px]">Auto ({syncIntervalVal}s)</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-slate-400" />
+                  <span className="text-[var(--ink-muted)] text-[11px]">Manual Only</span>
+                </div>
+              )}
+            </div>
+            <div className="text-[8px] font-mono font-bold text-[var(--ink-muted)] mt-1 flex items-center justify-center gap-1">
+              <Clock className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+              Last: {lastSyncTime || "N/A"}
+            </div>
+            {isAutoSyncActive && countdown !== null && (
+              <div className="text-[8px] font-mono font-bold text-indigo-600 dark:text-indigo-400 mt-0.5 flex items-center justify-center gap-1">
+                <Timer className="w-2.5 h-2.5 text-indigo-550 dark:text-indigo-400 shrink-0" />
+                Next: {countdown}s
+              </div>
+            )}
+          </div>
+
+          <div className="bg-emerald-500/10 text-emerald-600 rounded-2xl px-5 py-3 border border-emerald-500/20 text-center">
+            <div className="text-[9px] font-black uppercase tracking-widest text-emerald-500">Node Status</div>
+            <div className="text-xs font-black flex items-center gap-1.5 justify-center mt-1 uppercase tracking-wider">
+              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+              Connected
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Multi-Account Advice Panel */}
+      {showAdvisor && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className="bg-amber-500/5 dark:bg-amber-500/10 border border-amber-550/25 rounded-3xl p-6 relative overflow-hidden"
+        >
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/15">
+              <Sparkles className="w-5 h-5 animate-pulse" />
+            </div>
+            <div className="space-y-1.5 flex-1 text-left">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                  Team Architecture Tip: Unified Page Access Setup
+                </span>
+                <button 
+                  onClick={() => setShowAdvisor(false)} 
+                  className="text-[9px] text-amber-600 dark:text-amber-400 font-black uppercase tracking-wider hover:underline"
+                >
+                  Dismiss
+                </button>
+              </div>
+              <p className="text-xs text-[var(--ink)] font-black leading-normal">
+                👋 Do we need separate tokens if multiple child pages are owned by one master Facebook profile?
+              </p>
+              <p className="text-xs text-[var(--ink-muted)] leading-relaxed font-bold">
+                <strong>No!</strong> If all business pages and Instagram accounts belong to the same Facebook account or Business Manager, you only need to issue and track <strong>one master token</strong> in settings with all required permissions. The platform will automatically authorize and route comments/DMs correctly across all pages contextually!
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* Hero Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard title="Total Triggers" value={totalTriggers.toLocaleString()} change="+12%" icon={Zap} color="text-indigo-600" bg="bg-indigo-50" />
@@ -587,7 +1027,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Chart */}
-        <div className="lg:col-span-2 neural-card h-[500px] flex flex-col p-10">
+        <div className="lg:col-span-2 neural-card h-[350px] sm:h-[450px] lg:h-[500px] flex flex-col p-6 sm:p-10">
           <div className="flex items-center justify-between mb-8">
             <div className="space-y-1">
               <h3 className="text-xl font-black text-[var(--ink)] tracking-tight italic">Triggers Activity</h3>
@@ -684,7 +1124,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Platform Distribution */}
-        <div className="neural-card p-10 flex flex-col items-center">
+        <div className="neural-card p-6 sm:p-10 flex flex-col items-center">
           <h3 className="text-xl font-black text-[var(--ink)] italic tracking-tight mb-2">Platform Distribution</h3>
           <p className="text-[10px] font-bold text-[var(--ink-muted)] uppercase tracking-widest mb-8">Triggers per network</p>
           
@@ -727,7 +1167,7 @@ export default function Dashboard() {
         </div>
 
         {/* Hottest Keywords */}
-        <div className="neural-card p-10">
+        <div className="neural-card p-6 sm:p-10">
           <div className="flex items-center justify-between mb-10">
              <div className="space-y-1">
               <h3 className="text-xl font-black text-[var(--ink)] italic tracking-tight">Hottest Keywords</h3>
@@ -883,7 +1323,7 @@ export default function Dashboard() {
       </div>
 
       {/* Responder Health */}
-      <div className="neural-card p-10">
+      <div className="neural-card p-6 sm:p-10">
         <div className="flex items-center justify-between mb-10">
             <div className="space-y-1">
             <h3 className="text-xl font-black text-[var(--ink)] italic tracking-tight">Responder Health</h3>

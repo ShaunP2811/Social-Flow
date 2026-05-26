@@ -34,6 +34,12 @@ import {
   Inbox,
   AlertCircle,
   FileSearch,
+  Contrast,
+  Terminal,
+  Globe,
+  Code,
+  Copy,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { motion, AnimatePresence, Reorder } from "framer-motion";
@@ -321,8 +327,46 @@ const mockPosts = [
   },
 ];
 
-export default function KeywordResponders() {
+const highlightMatches = (text: string, query: string) => {
+  if (!query || !query.trim()) {
+    return <span>{text}</span>;
+  }
+  
+  try {
+    const escapedQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
+    const regex = new RegExp(`(${escapedQuery})`, "gi");
+    const parts = text.split(regex);
+    
+    return (
+      <>
+        {parts.map((part, i) => 
+          regex.test(part) ? (
+            <mark key={i} className="bg-amber-500/30 dark:bg-amber-500/50 text-amber-950 dark:text-amber-100 px-0.5 rounded font-black">
+              {part}
+            </mark>
+          ) : (
+            <span key={i}>{part}</span>
+          )
+        )}
+      </>
+    );
+  } catch (e) {
+    return <span>{text}</span>;
+  }
+};
+
+export default function KeywordResponders({ activeAccount = "Instagram: @social_flow" }: { activeAccount?: string }) {
   const [responders, setResponders] = useState<KeywordResponder[]>([]);
+  
+  // Sandbox State Variables
+  const [sandboxUsername, setSandboxUsername] = useState<string>("social_seeker");
+  const [sandboxCommentText, setSandboxCommentText] = useState<string>("PRICING");
+  const [sandboxResult, setSandboxResult] = useState<any | null>(null);
+  const [sandboxLoading, setSandboxLoading] = useState<boolean>(false);
+  const [sandboxOauthConnected, setSandboxOauthConnected] = useState<boolean>(false);
+  const [sandboxAccessToken, setSandboxAccessToken] = useState<string>("");
+  const [sandboxPageId, setSandboxPageId] = useState<string>("");
+  const [sandboxSuccessCopied, setSandboxSuccessCopied] = useState<boolean>(false);
   const [isAdding, setIsAdding] = useState(false);
   const [editingResponderId, setEditingResponderId] = useState<string | null>(
     null,
@@ -337,10 +381,20 @@ export default function KeywordResponders() {
     "All" | "Instagram" | "Facebook"
   >("All");
   const [statusFilter, setStatusFilter] = useState<"All" | Status>("All");
+  const [usageFilter, setUsageFilter] = useState<"All" | "InUse" | "Idle">("All");
   const [responseTypeFilter, setResponseTypeFilter] = useState<
     "All" | "Static" | "AI"
   >("All");
   const [hoveredTriggerId, setHoveredTriggerId] = useState<string | null>(null);
+  const [highContrastResponders, setHighContrastResponders] = useState<string[]>([]);
+
+  // Sync with global Active Account
+  const currentPlatform = activeAccount.includes("Instagram") ? "Instagram" : "Facebook";
+
+  useEffect(() => {
+    setMainPlatformFilter(currentPlatform as any);
+    setNewPlatform(currentPlatform as any);
+  }, [activeAccount, currentPlatform]);
 
   // Creation State
   const [newPlatform, setNewPlatform] = useState<Platform>("Instagram");
@@ -678,7 +732,7 @@ export default function KeywordResponders() {
     "desc",
   );
   const [expandedNotesId, setExpandedNotesId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"Rules" | "History" | "Unmatched">(
+  const [activeTab, setActiveTab] = useState<"Rules" | "History" | "Unmatched" | "Sandbox">(
     "Rules",
   );
   const [selectedResponderIds, setSelectedResponderIds] = useState<string[]>(
@@ -945,6 +999,17 @@ export default function KeywordResponders() {
     return () => clearTimeout(timer);
   }, []);
 
+  const isInitialMount = React.useRef(true);
+  useEffect(() => {
+    if (isLoading) return;
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    // Dispatch synchronization animation when trigger configuration changes
+    window.dispatchEvent(new CustomEvent("social-flow-sync"));
+  }, [responders, isLoading]);
+
   const filtered = responders.filter((r) => {
     const matchesSearch = r.keywords.some((k) =>
       k.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -952,7 +1017,11 @@ export default function KeywordResponders() {
     const matchesPlatform =
       mainPlatformFilter === "All" || r.platform === mainPlatformFilter;
     const matchesStatus = statusFilter === "All" || r.status === statusFilter;
-    return matchesSearch && matchesPlatform && matchesStatus;
+    const matchesUsage =
+      usageFilter === "All" ||
+      (usageFilter === "InUse" && r.status === "Active" && r.triggerCount > 0) ||
+      (usageFilter === "Idle" && (r.status !== "Active" || r.triggerCount === 0));
+    return matchesSearch && matchesPlatform && matchesStatus && matchesUsage;
   });
 
   const togglePost = (id: string) => {
@@ -1033,6 +1102,9 @@ export default function KeywordResponders() {
         keywords: keywords,
         responseTemplates: finalTemplates,
         randomizeTemplates: newRandomizeTemplates,
+        autoLike: newAutoLike,
+        publicReply: newPublicReply,
+        publicReplyTemplate: newPublicReply ? newPublicReplyText : undefined,
         status: newStatus,
         triggerCount: 0,
         lastTriggered: "Just now",
@@ -1263,6 +1335,18 @@ export default function KeywordResponders() {
           logText: `Comment query received on ${postPlatform} but no active matching keyword rule was triggered for ${postName}. Routing query to Unmatched inbox.`,
         });
 
+        // Raise a global toast alert for rule evaluation fallback
+        window.dispatchEvent(
+          new CustomEvent('social-flow-toast', {
+            detail: {
+              title: "Rule Mismatch Fallback",
+              message: `Incoming query on ${postPlatform} matched no active automated rules. Routed to unmatched queue.`,
+              type: "warning",
+              duration: 7000
+            }
+          })
+        );
+
         // Dynamically append or increment unmatched comments in the actual inbox
         setUnmatchedQueries((prev) => {
           const checkText = sandboxMessage.trim();
@@ -1466,6 +1550,91 @@ export default function KeywordResponders() {
 
     // Scroll smoothly to top so user sees the editor form
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleTriggerSandboxWebhook = async () => {
+    setSandboxLoading(true);
+    setSandboxResult(null);
+    window.dispatchEvent(new CustomEvent("social-flow-sync", { detail: { status: true } }));
+    try {
+      const res = await fetch("/api/webhook/comment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          platform: sandboxPlatform,
+          postId: sandboxPostId,
+          commentText: sandboxCommentText,
+          username: sandboxUsername,
+          clientRules: responders,
+        }),
+      });
+      const data = await res.json();
+      setSandboxResult(data);
+
+      if (data.matched) {
+        window.dispatchEvent(
+          new CustomEvent("responder-trigger-execution", {
+            detail: {
+              id: data.diagnostics?.ruleId || "test-rule",
+              platform: sandboxPlatform,
+              user: sandboxUsername,
+              matched: data.diagnostics?.matchedKeyword || "KEYWORD",
+            },
+          })
+        );
+        window.dispatchEvent(
+          new CustomEvent("social-flow-toast", {
+            detail: {
+              title: "DM Handled Successfully!",
+              message: `Webhook received. Outgoing direct message prepared: "${data.actionsExecuted?.directMessageDispatched?.messagePayload}"`,
+              type: "success",
+            },
+          })
+        );
+      } else {
+        window.dispatchEvent(
+          new CustomEvent("social-flow-toast", {
+            detail: {
+              title: "No Matching Rules Found",
+              message: "Comment text or scoped post checks did not match any automated responder keywords.",
+              type: "warning",
+            },
+          })
+        );
+      }
+    } catch (err: any) {
+      console.error(err);
+      window.dispatchEvent(
+        new CustomEvent("social-flow-toast", {
+          detail: {
+            title: "Sandbox Request Failed",
+            message: err.message || "Failed to contact local mock endpoint.",
+            type: "error",
+          },
+        })
+      );
+    } finally {
+      setSandboxLoading(false);
+      window.dispatchEvent(new CustomEvent("social-flow-sync", { detail: { status: false } }));
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setSandboxSuccessCopied(true);
+    setTimeout(() => setSandboxSuccessCopied(false), 2000);
+    window.dispatchEvent(
+      new CustomEvent("social-flow-toast", {
+        detail: {
+          title: "Copied!",
+          message: "URL copied to clipboard. Paste this into your Meta App Webhook settings.",
+          type: "success",
+          duration: 3000,
+        },
+      })
+    );
   };
 
   return (
@@ -1678,7 +1847,7 @@ export default function KeywordResponders() {
 
       {/* Tabs Switcher */}
       <div className="flex items-center gap-8 border-b border-[var(--border)]">
-        {(["Rules", "Unmatched", "History"] as const).map((tab) => (
+        {(["Rules", "Unmatched", "History", "Sandbox"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -1693,6 +1862,7 @@ export default function KeywordResponders() {
               {tab === "Rules" && <Zap className="w-3.5 h-3.5" />}
               {tab === "Unmatched" && <Inbox className="w-3.5 h-3.5" />}
               {tab === "History" && <History className="w-3.5 h-3.5" />}
+              {tab === "Sandbox" && <Terminal className="w-3.5 h-3.5" />}
               {tab}
               {tab === "Unmatched" && (
                 <span className="bg-rose-500 text-white text-[8px] px-1.5 py-0.5 rounded-full">
@@ -1782,6 +1952,36 @@ export default function KeywordResponders() {
                         )}
                       </div>
                     </div>
+
+                    <div className="flex flex-col gap-2">
+                      <p className="text-[9px] font-black text-[var(--ink-muted)] uppercase tracking-widest ml-4">
+                        Utilization
+                      </p>
+                      <div className="flex bg-[var(--card)] p-1 rounded-[1.2rem] border border-[var(--border)] shadow-sm">
+                        {[
+                          { id: "All", label: "All Rules" },
+                          { id: "InUse", label: "Active & Used" },
+                          { id: "Idle", label: "Idle / Draft" },
+                        ].map((u) => (
+                          <button
+                            key={u.id}
+                            onClick={() => setUsageFilter(u.id as any)}
+                            className={cn(
+                              "px-4 py-2 rounded-[0.8rem] text-[9px] font-black uppercase tracking-widest transition-all min-w-[100px]",
+                              usageFilter === u.id
+                                ? u.id === "InUse"
+                                  ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20"
+                                  : u.id === "Idle"
+                                    ? "bg-amber-600 text-white shadow-lg shadow-amber-500/20"
+                                    : "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20"
+                                : "text-[var(--ink-muted)] hover:text-indigo-500",
+                            )}
+                          >
+                            {u.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1821,14 +2021,22 @@ export default function KeywordResponders() {
                           initial={{ opacity: 0, scale: 0.95 }}
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.95 }}
-                          transition={{ delay: idx * 0.05 }}
+                          whileHover={{ y: -4, scale: 1.005 }}
+                          transition={{ 
+                            type: "spring",
+                            stiffness: 400,
+                            damping: 30,
+                            layout: { duration: 0.3 }
+                          }}
                           className={cn(
-                            "neural-card flex flex-col md:flex-row md:items-center justify-between gap-8 group border-l-4 transition-all duration-500",
+                            "neural-card flex flex-col md:flex-row md:items-center justify-between gap-8 group border-l-4 transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/[0.06] dark:hover:shadow-indigo-500/[0.08]",
                             r.status === "Active"
                               ? "border-l-emerald-500 dark:border-l-emerald-600 shadow-sm"
                               : r.status === "Paused"
                                 ? "border-l-amber-500 dark:border-l-amber-600 opacity-80"
-                                : "border-l-slate-400 dark:border-l-slate-500"
+                                : "border-l-slate-400 dark:border-l-slate-500",
+                            highContrastResponders.includes(r.id) && r.status === "Active" && "!bg-emerald-50/75 dark:!bg-emerald-950/20 !border-emerald-300 dark:!border-emerald-800/40 shadow-md",
+                            highContrastResponders.includes(r.id) && r.status === "Paused" && "!bg-amber-50/75 dark:!bg-amber-950/30 !border-amber-300 dark:!border-amber-800/40 shadow-md"
                           )}
                         >
                           <div className="flex items-center gap-6">
@@ -1940,7 +2148,7 @@ export default function KeywordResponders() {
                                   >
                                     <Hash className="w-3 h-3 text-[var(--ink-muted)]" />
                                     <span className="text-[10px] font-black text-[var(--ink)] tracking-tight">
-                                      {kw}
+                                      {highlightMatches(kw, searchQuery)}
                                     </span>
                                   </div>
                                 ))}
@@ -2275,6 +2483,25 @@ export default function KeywordResponders() {
                             </div>
 
                             <div className="flex items-center gap-3">
+                              <button
+                                onClick={() => {
+                                  setHighContrastResponders((prev) =>
+                                    prev.includes(r.id)
+                                      ? prev.filter((id) => id !== r.id)
+                                      : [...prev, r.id]
+                                  );
+                                }}
+                                className={cn(
+                                  "px-4 h-12 rounded-2xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border",
+                                  highContrastResponders.includes(r.id)
+                                    ? "bg-indigo-600 text-white border-indigo-600 shadow-xl shadow-indigo-500/10"
+                                    : "bg-[var(--bg)] text-[var(--ink-muted)] hover:bg-slate-100 border-[var(--border)]",
+                                )}
+                                title="Toggle high contrast deep color mode"
+                              >
+                                <Contrast className="w-4 h-4" />
+                                <span className="hidden sm:inline">Contrast</span>
+                              </button>
                               <button
                                 onClick={() =>
                                   setExpandedNotesId(
@@ -3552,6 +3779,368 @@ export default function KeywordResponders() {
                 })}
               </div>
             )}
+          </motion.div>
+        )}
+
+        {activeTab === "Sandbox" && (
+          <motion.div
+            key="sandbox"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="grid grid-cols-1 lg:grid-cols-12 gap-10 mt-10"
+          >
+            {/* Left: Webhook Developer Console Simulator (7 Columns) */}
+            <div className="lg:col-span-7 space-y-8">
+              <div className="neural-card relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 blur-[100px] -z-10 rounded-full" />
+                
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-12 h-12 bg-indigo-600/10 rounded-2xl flex items-center justify-center">
+                    <Terminal className="w-6 h-6 text-indigo-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-xl text-[var(--ink)] tracking-tight">API Comment-to-DM Webhook Simulator</h3>
+                    <p className="text-[10px] font-black text-[var(--ink-muted)] uppercase tracking-widest">Real-Time Interaction Sandbox</p>
+                  </div>
+                </div>
+
+                <p className="text-xs text-[var(--ink-muted)] mb-8 leading-relaxed font-bold">
+                  Meta triggers automation flows by dispatching instant HTTPS POST JSON Webhook Events whenever viewers leave comments on custom posts. Use this simulator to send comments and watch how the local routing engine evaluates keywords and fires active automation rules.
+                </p>
+
+                <div className="space-y-6">
+                  {/* Row 1: Platform & Username */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-[var(--ink)] uppercase tracking-wider ml-2">Platform Context</label>
+                      <div className="flex bg-[var(--bg)] p-1.5 rounded-2xl border border-[var(--border)] shadow-inner">
+                        <button
+                          type="button"
+                          onClick={() => setSandboxPlatform("Instagram")}
+                          className={cn(
+                            "flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2",
+                            sandboxPlatform === "Instagram"
+                              ? "bg-white dark:bg-slate-800 text-pink-600 shadow-md"
+                              : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+                          )}
+                        >
+                          <Instagram className="w-4 h-4" />
+                          Instagram
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSandboxPlatform("Facebook")}
+                          className={cn(
+                            "flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2",
+                            sandboxPlatform === "Facebook"
+                              ? "bg-white dark:bg-slate-800 text-blue-600 shadow-md"
+                              : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
+                          )}
+                        >
+                          <Facebook className="w-4 h-4" />
+                          Facebook
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-[var(--ink)] uppercase tracking-wider ml-2">Simulated User profile</label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-black text-[var(--ink-muted)]">@</span>
+                        <input
+                          type="text"
+                          value={sandboxUsername}
+                          onChange={(e) => setSandboxUsername(e.target.value.replace(/[^a-zA-Z0-9__.]/g, ''))}
+                          placeholder="username"
+                          className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-2xl pl-8 pr-4 py-4 text-xs font-black tracking-tight focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 outline-none text-[var(--ink)]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row 2: Post ID & Comment Text */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="md:col-span-1 space-y-2">
+                      <label className="text-[10px] font-black text-[var(--ink)] uppercase tracking-wider ml-2">Targeted Post id</label>
+                      <select
+                        value={sandboxPostId}
+                        onChange={(e) => setSandboxPostId(e.target.value)}
+                        className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-2xl px-4 py-4 text-xs font-black tracking-tight focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 outline-none text-[var(--ink)]"
+                      >
+                        <option value="p1">Global / Post ID p1</option>
+                        <option value="p2">E-book target / Post ID p2</option>
+                        <option value="p3">Reel / Post ID p3</option>
+                        <option value="p99">Unlisted Post / Post ID p99</option>
+                      </select>
+                    </div>
+
+                    <div className="md:col-span-2 space-y-2">
+                      <label className="text-[10px] font-black text-[var(--ink)] uppercase tracking-wider ml-2">Comment Body (Simulated Message)</label>
+                      <input
+                        type="text"
+                        value={sandboxCommentText}
+                        onChange={(e) => setSandboxCommentText(e.target.value)}
+                        placeholder="e.g. tell me the PRICING!"
+                        className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-2xl px-4 py-4 text-xs font-black tracking-tight focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 outline-none text-[var(--ink)]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Submit Trigger Webhook Button */}
+                  <button
+                    type="button"
+                    onClick={handleTriggerSandboxWebhook}
+                    disabled={sandboxLoading || !sandboxCommentText.trim()}
+                    className="w-full h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-widest transition-all shadow-xl shadow-indigo-600/20 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3"
+                  >
+                    {sandboxLoading ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                        Analyzing Triggers...
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-4 h-4 text-white" />
+                        Fire Simulated Comment Webhook Event
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Simulated Console Response */}
+                {sandboxResult && (
+                  <div className="mt-8 border-t border-[var(--border)] pt-8 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black text-[var(--ink)] uppercase tracking-wider">Console Response Payload</span>
+                      <span className={cn(
+                        "text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-md font-mono",
+                        sandboxResult.matched
+                          ? "bg-emerald-500/10 text-emerald-600"
+                          : "bg-amber-500/10 text-amber-600"
+                      )}>
+                        {sandboxResult.matched ? "Matched & Dispatched" : "Ignored / No Keyword Match"}
+                      </span>
+                    </div>
+
+                    {/* Pre Code Box */}
+                    <div className="bg-slate-950 rounded-2xl border border-slate-800 p-6 overflow-hidden relative group">
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(JSON.stringify(sandboxResult, null, 2))}
+                        className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors duration-200"
+                        title="Copy Response JSON"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                      <pre className="font-mono text-[10px] text-slate-300 overflow-x-auto whitespace-pre-wrap leading-relaxed max-h-72">
+                        {JSON.stringify(sandboxResult, null, 2)}
+                      </pre>
+                    </div>
+
+                    {/* Detailed Diagnostic Explanation Box */}
+                    {sandboxResult.matched ? (
+                      <div className="p-4 bg-emerald-50 dark:bg-emerald-500/5 rounded-2xl border border-emerald-100 dark:border-emerald-500/10 flex gap-4">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black text-emerald-800 dark:text-emerald-400 uppercase tracking-tight">Active Automation Triggers Executed</p>
+                          <p className="text-[10px] text-emerald-700/80 dark:text-emerald-400/60 leading-relaxed font-semibold">
+                            Rule <span className="font-black text-emerald-700 dark:text-emerald-300">"{sandboxResult.diagnostics?.ruleName}"</span> captured keyword <span className="underline font-black text-emerald-800 dark:text-emerald-300">"{sandboxResult.diagnostics?.matchedKeyword}"</span> on platform {sandboxPlatform}. System completed standard actions: Auto-Liked comment, compiled fallback DM Template payload, and used page access tokens to securely queue delivery to @{sandboxUsername}.
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-amber-50 dark:bg-amber-500/5 rounded-2xl border border-amber-100 dark:border-amber-500/10 flex gap-4">
+                        <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+                          <AlertCircle className="w-4 h-4 text-amber-600" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black text-amber-800 dark:text-amber-400 uppercase tracking-tight">EVALUATION FAILED (NO MATCH)</p>
+                          <p className="text-[10px] text-amber-700/80 dark:text-amber-400/60 leading-relaxed font-semibold">
+                            The event containing comment body "{sandboxCommentText}" was analyzed. Standard filters scanned rule triggers, but found no active automations corresponding to the keyword or scope settings. Create a new responder on {sandboxPlatform} with "{sandboxCommentText.toUpperCase()}" to enable matches.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Developer Integration Console - Connect Instagram directly simulation */}
+              <div className="neural-card relative overflow-hidden bg-gradient-to-tr from-slate-900 to-indigo-950 text-white border-0">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+                  <div className="space-y-3">
+                    <span className="text-[9px] font-black text-indigo-400 uppercase tracking-[0.25em] leading-none block">Live Account Connect</span>
+                    <h3 className="text-xl font-black tracking-tight leading-none uppercase text-white">Direct Meta App Login Portal</h3>
+                    <p className="text-xs text-white/50 leading-relaxed max-w-lg font-bold">
+                      Skip simulations and connect your real Instagram Professional / Meta Page Developer App credentials securely to link automated Webhook comments to live direct messaging.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSandboxOauthConnected(true);
+                      setSandboxAccessToken("EAAGv1A1...");
+                      setSandboxPageId("1105159145618721");
+                      window.dispatchEvent(
+                        new CustomEvent("social-flow-toast", {
+                          detail: {
+                            title: "Connected via Developer Meta Auth!",
+                            message: "OAuth complete. Received sandboxed Page Access Token EAAGv1... Successful syncing to backend.",
+                            type: "success",
+                          },
+                        })
+                      );
+                    }}
+                    className={cn(
+                      "px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all outline-none flex items-center gap-3 shrink-0",
+                      sandboxOauthConnected
+                        ? "bg-emerald-500 text-white shadow-xl shadow-emerald-500/20"
+                        : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-2xl shadow-indigo-500/30"
+                    )}
+                  >
+                    <Instagram className="w-4 h-4 text-white" />
+                    {sandboxOauthConnected ? "Real Meta App Connected!" : "Login with Instagram App"}
+                  </button>
+                </div>
+
+                {sandboxOauthConnected && (
+                  <div className="mt-8 pt-8 border-t border-white/10 grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10 text-xs text-left">
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-black uppercase text-indigo-400 tracking-wider">Acquired Page Access Token</span>
+                      <div className="bg-white/5 border border-white/10 px-4 py-3.5 rounded-xl font-mono text-[10px] text-emerald-400 flex items-center justify-between">
+                        <span>{sandboxAccessToken}...</span>
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                       <span className="text-[10px] font-black uppercase text-indigo-400 tracking-wider">Associated FB Page ID</span>
+                       <div className="bg-white/5 border border-white/10 px-4 py-3.5 rounded-xl font-mono text-[10px] text-slate-300 flex items-center justify-between">
+                         <span>{sandboxPageId}</span>
+                         <span className="bg-indigo-500/10 text-indigo-400 font-sans font-black uppercase text-[8px] tracking-wider px-1.5 py-0.5 rounded-md">VERIFIED</span>
+                       </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Embedded Grid background decoration */}
+                <div className="absolute inset-0 matrix-bg opacity-5 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Right: Meta Developer API Guide & Setup documentation (5 Columns) */}
+            <div className="lg:col-span-5 space-y-8 text-left">
+              <div className="neural-card relative">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-3xl rounded-full" />
+                
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="w-10 h-10 bg-indigo-50 dark:bg-indigo-500/5 rounded-xl flex items-center justify-center">
+                    <Code className="w-5 h-5 text-indigo-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-black text-sm text-[var(--ink)] uppercase tracking-tight">Essential Developer Guide</h4>
+                    <p className="text-[10px] font-bold text-[var(--ink-muted)] uppercase tracking-wider">Meta App & Graph API Setup</p>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  {/* API Section 1 */}
+                  <div className="space-y-2">
+                    <h5 className="text-[11px] font-black uppercase text-indigo-600 tracking-wider flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
+                      1. Required Meta APIs
+                    </h5>
+                    <p className="text-xs text-[var(--ink-muted)] leading-relaxed font-bold pl-3.5">
+                      To run real automation triggers, you must create a Meta developer application at <a href="https://developers.facebook.com" target="_blank" className="font-black underline text-indigo-500">developers.facebook.com</a> with:
+                    </p>
+                    <ul className="text-xs text-[var(--ink-muted)] font-medium pl-8 list-disc space-y-1">
+                      <li><strong className="text-[var(--ink)]">Instagram Graph API</strong>: Handles comments querying and moderation.</li>
+                      <li><strong className="text-[var(--ink)]">Messenger Platform API</strong>: Powers Direct Message dispatch.</li>
+                    </ul>
+                  </div>
+
+                  {/* API Section 2 */}
+                  <div className="space-y-2">
+                    <h5 className="text-[11px] font-black uppercase text-indigo-600 tracking-wider flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
+                      2. Required OAuth Permission Scopes
+                    </h5>
+                    <p className="text-xs text-[var(--ink-muted)] leading-relaxed font-bold pl-3.5">
+                      Your Connect login popups must request the following permission scopes during user consent:
+                    </p>
+                    <div className="pl-3.5 pt-1 flex flex-wrap gap-1.5">
+                      {["instagram_basic", "instagram_manage_comments", "instagram_manage_messages", "pages_manage_metadata", "pages_show_list", "pages_read_engagement"].map((sc) => (
+                        <code key={sc} className="bg-[var(--bg)] border border-[var(--border)] font-mono text-[9px] text-indigo-600 px-2 py-1 rounded-md tracking-tight font-black uppercase">
+                          {sc}
+                        </code>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* API Section 3 */}
+                  <div className="space-y-2">
+                    <h5 className="text-[11px] font-black uppercase text-indigo-600 tracking-wider flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
+                      3. Live Webhook Callback Target
+                    </h5>
+                    <p className="text-xs text-[var(--ink-muted)] leading-relaxed font-bold pl-3.5">
+                      In Meta App Settings, subscribe to the Webhook category <strong className="text-[var(--ink)]">instagram</strong> and active fields <strong className="text-[var(--ink)]">comments</strong>. Point callback to this exact app URL:
+                    </p>
+                    <div className="pl-3.5">
+                      <div className="bg-[var(--bg)] border border-[var(--border)] pl-4 pr-2 py-2 rounded-xl flex items-center justify-between hover:border-indigo-500/30 transition-colors">
+                        <code className="font-mono text-[10px] text-indigo-500 tracking-tight truncate w-60">
+                          {window.location.origin}/api/webhook/comment
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(`${window.location.origin}/api/webhook/comment`)}
+                          className="p-2.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-800 transition-colors shrink-0"
+                          title="Copy Full Callback URL"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* API Section 4 */}
+                  <div className="space-y-2 pt-2 border-t border-[var(--border)]">
+                    <h5 className="text-[11px] font-black uppercase text-indigo-600 tracking-wider flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
+                      4. Sandbox Token Credentials
+                    </h5>
+                    <p className="text-xs text-[var(--ink-muted)] leading-relaxed font-bold pl-3.5">
+                      Save your acquired tokens inside AI Studio environment settings to persist configuration:
+                    </p>
+                    <div className="pl-3.5 grid grid-cols-1 gap-2 pt-1 font-mono text-[9px]">
+                      <div className="bg-slate-950 px-3 py-2 rounded-lg border border-slate-800 text-slate-400 flex items-center justify-between">
+                        <span>INSTAGRAM_CLIENT_ID</span>
+                        <span className="text-indigo-400 uppercase tracking-widest font-black text-[8px]">OAuth app ID</span>
+                      </div>
+                      <div className="bg-slate-950 px-3 py-2 rounded-lg border border-slate-800 text-slate-400 flex items-center justify-between">
+                        <span>INSTAGRAM_PAGE_TOKEN</span>
+                        <span className="text-emerald-400 uppercase tracking-widest font-black text-[8px]">Token key</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tips for Meta Verification App Setup card */}
+              <div className="neural-card bg-indigo-50/50 dark:bg-indigo-500/5 border border-indigo-100 dark:border-indigo-500/15 p-6 rounded-3xl flex items-start gap-4">
+                <div className="w-10 h-10 bg-white dark:bg-slate-800 border border-indigo-100 dark:border-indigo-900 rounded-xl flex items-center justify-center shrink-0 shadow-sm">
+                  <ShieldCheck className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div className="space-y-1 pb-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-indigo-800 dark:text-indigo-400 block leading-none">Meta Review Requirements</span>
+                  <p className="text-xs text-indigo-700/80 dark:text-indigo-400/60 leading-relaxed font-semibold">
+                    While testing, messages deliver cleanly to your Meta application developer/sandbox test accounts instantly. To dispatch direct DMs to standard followers in production, you must submit your app for Meta's <strong className="text-indigo-900 dark:text-indigo-300">App Review</strong> process and request approval for scopes <strong className="text-indigo-900 dark:text-indigo-300">instagram_manage_comments</strong> and <strong className="text-indigo-900 dark:text-indigo-300">instagram_manage_messages</strong>.
+                  </p>
+                </div>
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
