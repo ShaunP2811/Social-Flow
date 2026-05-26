@@ -167,6 +167,17 @@ const Settings = ({
       setLastSyncTime(timeStr);
       localStorage.setItem("supabase_last_sync_time", timeStr);
       localStorage.setItem("supabase_last_sync_timestamp", String(now.getTime()));
+      
+      // Update sync history (last 5 successful syncs)
+      try {
+        const histStr = localStorage.getItem("supabase_sync_history") || "[]";
+        const currentHistory = Array.isArray(JSON.parse(histStr)) ? JSON.parse(histStr) : [];
+        const newHistory = [timeStr, ...currentHistory.filter((t: string) => t !== timeStr)].slice(0, 5);
+        localStorage.setItem("supabase_sync_history", JSON.stringify(newHistory));
+      } catch (e) {
+        localStorage.setItem("supabase_sync_history", JSON.stringify([timeStr]));
+      }
+
       setSyncStatusLog(`[${timeStr}] Synced ${rules.length || 0} active automation rules.`);
       
       // Dispatch toast notice

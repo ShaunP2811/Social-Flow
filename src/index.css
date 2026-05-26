@@ -71,4 +71,19 @@
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: var(--accent);
   }
+
+  @keyframes pulseSubtle {
+    0%, 100% {
+      box-shadow: 0 10px 30px -10px rgba(16, 185, 129, 0.05), 0 0 0 1px rgba(16, 185, 129, 0.05);
+      border-color: rgba(16, 185, 129, 0.15);
+    }
+    50% {
+      box-shadow: 0 15px 40px -5px rgba(16, 185, 129, 0.12), 0 0 12px 2px rgba(16, 185, 129, 0.08);
+      border-color: rgba(16, 185, 129, 0.35);
+    }
+  }
+
+  .animate-pulse-subtle {
+    animation: pulseSubtle 3s ease-in-out infinite;
+  }
 }

@@ -18,6 +18,7 @@ import {
   Cpu,
   ArrowUpRight,
   Command,
+  GitFork,
   Clapperboard,
   Image as ImageIcon,
   PlayCircle,
@@ -40,10 +41,12 @@ import {
   Code,
   Copy,
   RefreshCw,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { motion, AnimatePresence, Reorder } from "framer-motion";
 import Templates from "./Templates";
+import VisualFlowBuilder from "../components/VisualFlowBuilder";
 
 type Platform = "Instagram" | "Facebook";
 type Status = "Active" | "Draft" | "Paused";
@@ -57,8 +60,12 @@ interface KeywordResponder {
   autoLike?: boolean;
   publicReply?: boolean;
   publicReplyTemplate?: string;
+  enableFallback?: boolean;
+  fallbackResponseTemplate?: string;
+  fallbackPublicReplyTemplate?: string;
   status: Status;
   triggerCount: number;
+  fallbackTriggerCount?: number;
   lastTriggered: string;
   createdAt: string;
   scope: "All" | "Posts";
@@ -408,6 +415,9 @@ export default function KeywordResponders({ activeAccount = "Instagram: @social_
   const [newPublicReply, setNewPublicReply] = useState(false);
   const [newPublicReplyText, setNewPublicReplyText] = useState("");
   const [newScope, setNewScope] = useState<"All" | "Posts">("All");
+  const [newEnableFallback, setNewEnableFallback] = useState(false);
+  const [newFallbackResponseTemplate, setNewFallbackResponseTemplate] = useState("");
+  const [newFallbackPublicReplyTemplate, setNewFallbackPublicReplyTemplate] = useState("");
   const [selectedPosts, setSelectedPosts] = useState<string[]>([]);
   const [postSearchQuery, setPostSearchQuery] = useState("");
   const [postSelectionPage, setPostSelectionPage] = useState(1);
@@ -732,7 +742,7 @@ export default function KeywordResponders({ activeAccount = "Instagram: @social_
     "desc",
   );
   const [expandedNotesId, setExpandedNotesId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"Rules" | "History" | "Unmatched" | "Sandbox">(
+  const [activeTab, setActiveTab] = useState<"Rules" | "Visual Flow" | "History" | "Unmatched" | "Sandbox">(
     "Rules",
   );
   const [selectedResponderIds, setSelectedResponderIds] = useState<string[]>(
@@ -938,6 +948,10 @@ export default function KeywordResponders({ activeAccount = "Instagram: @social_
           successRate: 99.1,
           conversionRate: 18.4,
           avgLatency: 0.68,
+          enableFallback: true,
+          fallbackResponseTemplate: "pricing starts at $29/mo! Check out official keywords.",
+          fallbackPublicReplyTemplate: "Sent you a DM! Try using official keywords.",
+          fallbackTriggerCount: 142,
         },
         {
           id: "2",
@@ -967,6 +981,8 @@ export default function KeywordResponders({ activeAccount = "Instagram: @social_
           successRate: 98.4,
           conversionRate: 12.1,
           avgLatency: 0.82,
+          enableFallback: false,
+          fallbackTriggerCount: 0,
         },
         {
           id: "3",
@@ -1086,6 +1102,9 @@ export default function KeywordResponders({ activeAccount = "Instagram: @social_
                 publicReplyTemplate: newPublicReply
                   ? newPublicReplyText
                   : undefined,
+                enableFallback: newEnableFallback,
+                fallbackResponseTemplate: newEnableFallback ? newFallbackResponseTemplate : undefined,
+                fallbackPublicReplyTemplate: newEnableFallback ? newFallbackPublicReplyTemplate : undefined,
                 status: newStatus,
                 createdAt: r.createdAt,
                 scope: newScope,
@@ -1105,8 +1124,12 @@ export default function KeywordResponders({ activeAccount = "Instagram: @social_
         autoLike: newAutoLike,
         publicReply: newPublicReply,
         publicReplyTemplate: newPublicReply ? newPublicReplyText : undefined,
+        enableFallback: newEnableFallback,
+        fallbackResponseTemplate: newEnableFallback ? newFallbackResponseTemplate : undefined,
+        fallbackPublicReplyTemplate: newEnableFallback ? newFallbackPublicReplyTemplate : undefined,
         status: newStatus,
         triggerCount: 0,
+        fallbackTriggerCount: 0,
         lastTriggered: "Just now",
         createdAt: new Date().toISOString(),
         scope: newScope,
@@ -1140,6 +1163,9 @@ export default function KeywordResponders({ activeAccount = "Instagram: @social_
     setNewAutoLike(false);
     setNewPublicReply(false);
     setNewPublicReplyText("");
+    setNewEnableFallback(false);
+    setNewFallbackResponseTemplate("");
+    setNewFallbackPublicReplyTemplate("");
     setNewScope("All");
     setPostSearchQuery("");
     setSelectedPosts([]);
@@ -1163,6 +1189,9 @@ export default function KeywordResponders({ activeAccount = "Instagram: @social_
     setNewAutoLike(responder.autoLike || false);
     setNewPublicReply(responder.publicReply || false);
     setNewPublicReplyText(responder.publicReplyTemplate || "");
+    setNewEnableFallback(responder.enableFallback || false);
+    setNewFallbackResponseTemplate(responder.fallbackResponseTemplate || "");
+    setNewFallbackPublicReplyTemplate(responder.fallbackPublicReplyTemplate || "");
     setNewScope(responder.scope);
     setSelectedPosts(responder.targetedPostIds || []);
     setIsAdding(true);
@@ -1326,6 +1355,81 @@ export default function KeywordResponders({ activeAccount = "Instagram: @social_
       });
 
       if (eligibleResponders.length === 0) {
+        // Look for any active responders with enableFallback on this platform & post details
+        const fallbackOptions = activeResponders.filter((r) => {
+          if (r.platform !== postPlatform) return false;
+          if (r.scope === "Posts" && !r.targetedPostIds?.includes(finalPostId)) return false;
+          return !!r.enableFallback;
+        });
+
+        if (fallbackOptions.length > 0) {
+          // Sort specific posts scope over All scope
+          fallbackOptions.sort((a, b) => {
+            if (a.scope === "Posts" && b.scope === "All") return -1;
+            if (a.scope === "All" && b.scope === "Posts") return 1;
+            return 0;
+          });
+
+          const chosenFallback = fallbackOptions[0];
+          const fallbackDM = chosenFallback.fallbackResponseTemplate || "Sorry, I didn't recognize that term. Drop an official keyword!";
+
+          setSandboxResults({
+            status: "success",
+            matchedRule: {
+              ...chosenFallback,
+              // Treat keywords label as fallback for rendering output
+              keywords: ["Fallback (No Match Keyword)"]
+            },
+            dispatchedReply: fallbackDM,
+            logText: `Comment did not contain primary keywords, but triggered Fallback Responder configuration on rule [#${chosenFallback.keywords.join(", ")}].`,
+          });
+
+          // Raise a global toast alert for rule evaluation
+          window.dispatchEvent(
+            new CustomEvent('social-flow-toast', {
+              detail: {
+                title: "Fallback Triggered Successfully!",
+                message: `No keyword matched, but fallback DM was evaluated & sent for rule: "${chosenFallback.keywords[0]}"`,
+                type: "success",
+              }
+            })
+          );
+
+          // Add simulated action to History Log state automatically
+          const newHistoryLog = {
+            id: `h-sim-fb-${Math.random().toString(36).substr(2, 5)}`,
+            user: "sandbox_tester",
+            userAvatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop",
+            platform: chosenFallback.platform,
+            message: sandboxMessage,
+            keyword: "Fallback Trigger",
+            reply: fallbackDM,
+            timestamp: "Just now",
+            date: new Date().toISOString(),
+            type: "Static" as "AI" | "Static",
+          };
+
+          setHistoryLogs((prev) => [newHistoryLog, ...prev]);
+
+          // Increment fallback count on the matched rule
+          setResponders((prev) =>
+            prev.map((r) =>
+              r.id === chosenFallback.id
+                ? {
+                    ...r,
+                    fallbackTriggerCount: (r.fallbackTriggerCount || 0) + 1,
+                    lastTriggered: "Just now",
+                  }
+                : r
+            )
+          );
+
+          setSandboxToast("💡 Fallback action triggered.");
+          setTimeout(() => setSandboxToast(null), 3000);
+          setIsSandboxProcessing(false);
+          return;
+        }
+
         const postName = postDetails.isCustom
           ? `Custom Post ID: "${finalPostId}"`
           : `Post: "${postDetails.title}"`;
@@ -1847,7 +1951,7 @@ export default function KeywordResponders({ activeAccount = "Instagram: @social_
 
       {/* Tabs Switcher */}
       <div className="flex items-center gap-8 border-b border-[var(--border)]">
-        {(["Rules", "Unmatched", "History", "Sandbox"] as const).map((tab) => (
+        {(["Rules", "Visual Flow", "Unmatched", "History", "Sandbox"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -1860,6 +1964,7 @@ export default function KeywordResponders({ activeAccount = "Instagram: @social_
           >
             <div className="flex items-center gap-2">
               {tab === "Rules" && <Zap className="w-3.5 h-3.5" />}
+              {tab === "Visual Flow" && <GitFork className="w-3.5 h-3.5" />}
               {tab === "Unmatched" && <Inbox className="w-3.5 h-3.5" />}
               {tab === "History" && <History className="w-3.5 h-3.5" />}
               {tab === "Sandbox" && <Terminal className="w-3.5 h-3.5" />}
@@ -2136,6 +2241,23 @@ export default function KeywordResponders({ activeAccount = "Instagram: @social_
                                     )}
                                     <span className="text-[8px] font-black uppercase tracking-widest">
                                       {r.verificationStatus}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {r.enableFallback && (
+                                  <div
+                                    className={cn(
+                                      "px-2 py-0.5 rounded-md flex items-center gap-1 border transition-all",
+                                      (r.fallbackTriggerCount || 0) > 0
+                                        ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 font-black"
+                                        : "bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 font-semibold"
+                                    )}
+                                    title="Fallback Analytics"
+                                  >
+                                    <HelpCircle className={cn("w-2.5 h-2.5 shrink-0", (r.fallbackTriggerCount || 0) > 0 ? "text-amber-500 animate-pulse" : "text-slate-400")} />
+                                    <span className="text-[8px] uppercase tracking-widest">
+                                      Fallback: {r.fallbackTriggerCount || 0} Intercepts
                                     </span>
                                   </div>
                                 )}
@@ -3172,6 +3294,43 @@ export default function KeywordResponders({ activeAccount = "Instagram: @social_
                 </div>
               </div>
             </div>
+          </motion.div>
+        )}
+
+        {activeTab === "Visual Flow" && (
+          <motion.div
+            key="visual-flow"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="mt-10"
+          >
+            <div className="text-left mb-6">
+              <h2 className="text-2xl font-black text-[var(--ink)] tracking-tight italic flex items-center gap-2">
+                <GitFork className="w-6 h-6 text-indigo-600 animate-pulse" />
+                Visual Flow Designer Map
+              </h2>
+              <p className="text-[var(--ink-muted)] text-sm font-medium">
+                Analyze, debug, and trace trigger-response paths visually. Simulated pathways run animated laser diagnostics.
+              </p>
+            </div>
+            
+            <VisualFlowBuilder 
+              responders={responders} 
+              onSelectResponder={(id) => console.log("Selected visual responder flow:", id)}
+              onEditResponder={(id) => {
+                const responder = responders.find((r) => r.id === id);
+                if (responder) {
+                  handleEdit(responder);
+                }
+              }}
+              onDeleteResponder={(id) => {
+                setResponders((prev) => prev.filter((r) => r.id !== id));
+                setSelectedResponderIds((prev) => prev.filter((x) => x !== id));
+                setSandboxToast(`Rule #${id} has been deleted successfully`);
+                setTimeout(() => setSandboxToast(null), 2500);
+              }}
+            />
           </motion.div>
         )}
 
@@ -4641,6 +4800,95 @@ export default function KeywordResponders({ activeAccount = "Instagram: @social_
                                 placeholder="e.g. Just sent you a DM! Check your inbox 📩"
                                 className="w-full bg-[var(--card)] border border-indigo-200 rounded-xl px-4 py-3 text-[11px] font-medium focus:ring-4 focus:ring-indigo-500/10 outline-none shadow-sm min-h-[80px] text-[var(--ink)]"
                               />
+                            </motion.div>
+                          )}
+                        </div>
+
+                        {/* Fallback Option */}
+                        <div
+                          className={cn(
+                            "p-6 rounded-[2rem] border-2 transition-all mt-4",
+                            newEnableFallback
+                              ? "border-amber-500 bg-amber-50/20 dark:bg-amber-500/5"
+                              : "border-[var(--border)] bg-[var(--bg)]",
+                          )}
+                        >
+                          <div
+                            className="flex items-center justify-between cursor-pointer"
+                            onClick={() => setNewEnableFallback(!newEnableFallback)}
+                          >
+                            <div className="flex items-center gap-4">
+                              <div
+                                className={cn(
+                                  "w-10 h-10 rounded-xl flex items-center justify-center",
+                                  newEnableFallback
+                                    ? "bg-amber-500 text-white"
+                                    : "bg-[var(--card)] text-[var(--ink-muted)]",
+                                )}
+                              >
+                                <HelpCircle className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <p className="text-xs font-black text-[var(--ink)]">
+                                  Enable Fallback Response
+                                </p>
+                                <p className="text-[10px] text-[var(--ink-muted)] font-medium italic">
+                                  Respond if comment doesn't match any keywords.
+                                </p>
+                              </div>
+                            </div>
+                            <div
+                              className={cn(
+                                "w-12 h-6 rounded-full relative transition-all shrink-0",
+                                newEnableFallback
+                                  ? "bg-amber-500"
+                                  : "bg-[var(--border)]",
+                              )}
+                            >
+                              <div
+                                className={cn(
+                                  "absolute top-1 w-4 h-4 rounded-full bg-white transition-all",
+                                  newEnableFallback ? "left-7" : "left-1",
+                                )}
+                              />
+                            </div>
+                          </div>
+
+                          {newEnableFallback && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              className="mt-6 pt-6 border-t border-amber-200/50"
+                            >
+                              <div className="space-y-4">
+                                <div>
+                                  <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest mb-3">
+                                    Fallback DM Response Template
+                                  </p>
+                                  <textarea
+                                    value={newFallbackResponseTemplate}
+                                    onChange={(e) =>
+                                      setNewFallbackResponseTemplate(e.target.value)
+                                    }
+                                    placeholder="e.g. Sorry, I didn't catch that! Did you mean PRICING? Write one of our keywords for instant access! 🚀"
+                                    className="w-full bg-[var(--card)] border border-amber-200 rounded-xl px-4 py-3 text-[11px] font-medium focus:ring-4 focus:ring-amber-500/15 outline-none shadow-sm min-h-[80px] text-[var(--ink)]"
+                                  />
+                                </div>
+                                <div>
+                                  <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest mb-3">
+                                    Fallback Public Reply Template (Optional)
+                                  </p>
+                                  <input
+                                    type="text"
+                                    value={newFallbackPublicReplyTemplate}
+                                    onChange={(e) =>
+                                      setNewFallbackPublicReplyTemplate(e.target.value)
+                                    }
+                                    placeholder="e.g. Sent you a DM! Try reply with actual terms for direct links."
+                                    className="w-full bg-[var(--card)] border border-amber-100 rounded-xl px-4 py-3 text-[11px] font-medium focus:ring-4 focus:ring-amber-500/15 outline-none shadow-sm text-[var(--ink)]"
+                                  />
+                                </div>
+                              </div>
                             </motion.div>
                           )}
                         </div>

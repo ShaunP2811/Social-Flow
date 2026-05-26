@@ -26,7 +26,8 @@ import {
   Facebook,
   Database,
   Clock,
-  Timer
+  Timer,
+  History
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../lib/utils';
@@ -567,6 +568,18 @@ export default function Dashboard({ activeAccount = "Instagram: @social_flow" }:
     return 30;
   });
   const [countdown, setCountdown] = React.useState<number | null>(null);
+  const [syncHistory, setSyncHistory] = React.useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const histStr = localStorage.getItem("supabase_sync_history");
+        return histStr ? JSON.parse(histStr) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  });
+  const [showHistory, setShowHistory] = React.useState(false);
 
   const runBackgroundSync = async () => {
     if (isSyncing) return;
@@ -582,6 +595,19 @@ export default function Dashboard({ activeAccount = "Instagram: @social_flow" }:
         localStorage.setItem("supabase_last_sync_time", timeStr);
         localStorage.setItem("supabase_last_sync_timestamp", String(now.getTime()));
         setLastSyncTime(timeStr);
+
+        // Update sync history
+        const updatedHistory = (() => {
+          try {
+            const histStr = localStorage.getItem("supabase_sync_history") || "[]";
+            const currentHistory = Array.isArray(JSON.parse(histStr)) ? JSON.parse(histStr) : [];
+            return [timeStr, ...currentHistory.filter((t: string) => t !== timeStr)].slice(0, 5);
+          } catch (e) {
+            return [timeStr];
+          }
+        })();
+        localStorage.setItem("supabase_sync_history", JSON.stringify(updatedHistory));
+        setSyncHistory(updatedHistory);
 
         window.dispatchEvent(
           new CustomEvent("social-flow-toast", {
@@ -644,6 +670,15 @@ export default function Dashboard({ activeAccount = "Instagram: @social_flow" }:
         setIsAutoSyncActive(active);
         setLastSyncTime(lastSync);
         setSyncIntervalVal(interval);
+
+        try {
+          const histStr = localStorage.getItem("supabase_sync_history");
+          if (histStr) {
+            setSyncHistory(JSON.parse(histStr));
+          }
+        } catch (e) {
+          // fallback
+        }
       }
     };
     
@@ -933,43 +968,117 @@ export default function Dashboard({ activeAccount = "Instagram: @social_flow" }:
         </div>
         <div className="flex items-center gap-3 shrink-0">
           {/* Supabase Sync Status Widget */}
-          <div className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-2xl px-5 py-3 border border-indigo-500/15 text-center min-w-[130px] relative">
-            <div className="text-[9px] font-black uppercase tracking-widest text-indigo-500 flex items-center justify-center gap-1">
-              <motion.span
-                animate={isSyncing ? { rotate: 360 } : { rotate: 0 }}
-                transition={{ duration: 0.6, ease: "easeInOut" }}
-                className="inline-block shrink-0"
-              >
-                <Database className="w-3 h-3 text-indigo-500" />
-              </motion.span>
-              Sync Status
-            </div>
-            <div className="text-xs font-black flex items-center gap-1.5 justify-center mt-1 uppercase tracking-wider">
-              {isAutoSyncActive ? (
-                <div className="flex items-center gap-1.5 relative">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 text-emerald-400"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                  </span>
-                  <span className="text-emerald-500 font-extrabold text-[11px]">Auto ({syncIntervalVal}s)</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-slate-400" />
-                  <span className="text-[var(--ink-muted)] text-[11px]">Manual Only</span>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowHistory(!showHistory)}
+              className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-2xl px-5 py-3 border border-indigo-500/15 text-center min-w-[140px] relative overflow-hidden block hover:bg-indigo-500/15 transition-all select-none group"
+            >
+              {/* Shimmer Effect */}
+              {isSyncing && (
+                <motion.div
+                  initial={{ left: "-150%" }}
+                  animate={{ left: "150%" }}
+                  transition={{ repeat: Infinity, duration: 1.2, ease: "linear" }}
+                  className="absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-transparent via-white/25 dark:via-white/10 to-transparent -skew-x-12 pointer-events-none z-10"
+                />
+              )}
+              
+              <div className="text-[9px] font-black uppercase tracking-widest text-indigo-500 flex items-center justify-center gap-1 relative z-10">
+                <span className="inline-block shrink-0">
+                  <Database className="w-3 h-3 text-indigo-500" />
+                </span>
+                Sync Status
+              </div>
+              <div className="text-xs font-black flex items-center gap-1.5 justify-center mt-1 uppercase tracking-wider relative z-10">
+                {isAutoSyncActive ? (
+                  <div className="flex items-center gap-1.5 relative">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 text-emerald-400"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <span className="text-emerald-500 font-extrabold text-[11px]">Auto ({syncIntervalVal}s)</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-slate-400" />
+                    <span className="text-[var(--ink-muted)] text-[11px]">Manual Only</span>
+                  </div>
+                )}
+              </div>
+              <div className="text-[8px] font-mono font-bold text-[var(--ink-muted)] mt-1 flex items-center justify-center gap-1 relative z-10">
+                <Clock className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                Last: {lastSyncTime || "N/A"}
+              </div>
+              {isAutoSyncActive && countdown !== null && (
+                <div className="text-[8px] font-mono font-bold text-indigo-600 dark:text-indigo-400 mt-0.5 flex items-center justify-center gap-1 relative z-10">
+                  <Timer className="w-2.5 h-2.5 text-indigo-550 dark:text-indigo-400 shrink-0" />
+                  Next: {countdown}s
                 </div>
               )}
-            </div>
-            <div className="text-[8px] font-mono font-bold text-[var(--ink-muted)] mt-1 flex items-center justify-center gap-1">
-              <Clock className="w-2.5 h-2.5 text-slate-400 shrink-0" />
-              Last: {lastSyncTime || "N/A"}
-            </div>
-            {isAutoSyncActive && countdown !== null && (
-              <div className="text-[8px] font-mono font-bold text-indigo-600 dark:text-indigo-400 mt-0.5 flex items-center justify-center gap-1">
-                <Timer className="w-2.5 h-2.5 text-indigo-550 dark:text-indigo-400 shrink-0" />
-                Next: {countdown}s
+              
+              {/* Subtle view log tag */}
+              <div className="mt-1.5 pt-1.5 border-t border-indigo-500/10 text-[7px] font-bold uppercase tracking-widest text-indigo-500 group-hover:text-indigo-600 flex items-center justify-center gap-1 relative z-10">
+                <History className="w-2 h-2" />
+                {showHistory ? "Close Log" : "Sync History"}
               </div>
-            )}
+            </button>
+
+            {/* Sync History Dropdown overlay */}
+            <AnimatePresence>
+              {showHistory && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.15, ease: "easeOut" }}
+                  className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl shadow-indigo-500/5 p-4 z-50 text-left"
+                >
+                  <div className="flex items-center justify-between border-b border-indigo-100 dark:border-white/5 pb-2 mb-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                      <History className="w-3.5 h-3.5 text-indigo-500" />
+                      Sync History
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        localStorage.removeItem("supabase_sync_history");
+                        setSyncHistory([]);
+                      }}
+                      className="text-[8px] font-black uppercase tracking-wider text-rose-500 hover:text-rose-700 bg-rose-500/5 dark:bg-rose-500/10 px-1.5 py-0.5 rounded transition-colors"
+                    >
+                      Clear Log
+                    </button>
+                  </div>
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                    {syncHistory.length === 0 ? (
+                      <div className="text-[9px] text-slate-400 dark:text-slate-500 font-bold italic py-3 text-center">
+                        No recent syncs logged
+                      </div>
+                    ) : (
+                      syncHistory.map((time, idx) => (
+                        <div 
+                          key={time + idx} 
+                          className="flex items-center justify-between text-[10px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/40 px-2 py-1.5 rounded-lg border border-slate-100 dark:border-white/5 transition-colors"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            <span className="font-mono text-[9px]">{time}</span>
+                          </div>
+                          <span className="text-[8px] font-mono text-slate-400 dark:text-slate-500 font-black uppercase">
+                            {idx === 0 ? "Latest" : `#${syncHistory.length - idx}`}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <div className="text-[8px] text-slate-400 dark:text-slate-500 font-bold text-center mt-3 pt-2 border-t border-slate-100 dark:border-white/5 uppercase tracking-wide">
+                    Tracks last 5 syncs
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           <div className="bg-emerald-500/10 text-emerald-600 rounded-2xl px-5 py-3 border border-emerald-500/20 text-center">

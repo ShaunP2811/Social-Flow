@@ -209,7 +209,7 @@ app.post('/api/webhook/comment', async (req, res) => {
   }
 
   // Audit matches in retrieved rules
-  const matchedRule = activeRules.find((rule) => {
+  let matchedRule = activeRules.find((rule) => {
     if (rule.status !== 'Active') return false;
     if (rule.platform !== platform) return false;
 
@@ -229,6 +229,23 @@ app.post('/api/webhook/comment', async (req, res) => {
     });
   });
 
+  let isFallbackTriggered = false;
+  if (!matchedRule) {
+    // Look for active fallback rule on this platform & post context
+    matchedRule = activeRules.find((rule) => {
+      if (rule.status !== 'Active') return false;
+      if (rule.platform !== platform) return false;
+      if (rule.scope === 'Posts') {
+        const targetedList = rule.targetedPostIds || rule.targeted_post_ids || [];
+        if (!targetedList.includes(targetPostId)) return false;
+      }
+      return !!rule.enableFallback;
+    });
+    if (matchedRule) {
+      isFallbackTriggered = true;
+    }
+  }
+
   if (!matchedRule) {
     return res.json({
       matched: false,
@@ -244,25 +261,37 @@ app.post('/api/webhook/comment', async (req, res) => {
   }
 
   // Select a response template (randomly or first option)
-  const templates = matchedRule.responseTemplates || matchedRule.response_templates || [];
-  const selectedDmMessage = templates.length > 0
-    ? templates[Math.floor(Math.random() * templates.length)]
-    : 'Default Automated Reply! Thank you for contacting us.';
+  let selectedDmMessage = '';
+  if (isFallbackTriggered) {
+    selectedDmMessage = matchedRule.fallbackResponseTemplate || 'No keywords matched. How can we help you?';
+  } else {
+    const templates = matchedRule.responseTemplates || matchedRule.response_templates || [];
+    selectedDmMessage = templates.length > 0
+      ? templates[Math.floor(Math.random() * templates.length)]
+      : 'Default Automated Reply! Thank you for contacting us.';
+  }
 
   // Simulated DM dispatch logs and values
   const responsePayload = {
     matched: true,
-    message: '🚀 DM Auto-Trigger Dispatched!',
+    isFallback: isFallbackTriggered,
+    message: isFallbackTriggered ? '🚀 Fallback Action Triggered' : '🚀 DM Auto-Trigger Dispatched!',
     dataSource,
     diagnostics: {
       ruleId: matchedRule.id,
-      ruleName: matchedRule.name,
-      matchedKeyword: (matchedRule.keywords || []).find((k: string) => commentText.toUpperCase().includes(k.toUpperCase())) || 'Wildcard',
+      ruleName: matchedRule.name || `Rule #${matchedRule.id}`,
+      matchedKeyword: isFallbackTriggered 
+        ? 'None (Fallback triggered)' 
+        : ((matchedRule.keywords || []).find((k: string) => commentText.toUpperCase().includes(k.toUpperCase())) || 'Wildcard'),
     },
     actionsExecuted: {
       autoLike: matchedRule.autoLike || false,
-      publicReplySent: matchedRule.publicReply || false,
-      publicReplyText: matchedRule.publicReply ? (matchedRule.publicReplyTemplate || 'Sent you a DM!') : null,
+      publicReplySent: isFallbackTriggered 
+        ? !!matchedRule.fallbackPublicReplyTemplate 
+        : (matchedRule.publicReply || false),
+      publicReplyText: isFallbackTriggered 
+        ? matchedRule.fallbackPublicReplyTemplate || null
+        : (matchedRule.publicReply ? (matchedRule.publicReplyTemplate || 'Sent you a DM!') : null),
       directMessageDispatched: {
         toUsername: sender,
         messagePayload: selectedDmMessage,
