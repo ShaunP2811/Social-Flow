@@ -88,6 +88,39 @@ const leadResponseDailyTrends = [
   { day: 'May 21', 'Automated DM': 195, 'Comment Auto-Responder': 175, 'Story Mention Reply': 95 },
 ];
 
+const performanceTrendsData = [
+  { date: 'May 11', automated: 85, human: 32 },
+  { date: 'May 12', automated: 92, human: 28 },
+  { date: 'May 13', automated: 110, human: 35 },
+  { date: 'May 14', automated: 95, human: 42 },
+  { date: 'May 15', automated: 120, human: 38 },
+  { date: 'May 16', automated: 135, human: 41 },
+  { date: 'May 17', automated: 150, human: 45 },
+  { date: 'May 18', automated: 142, human: 39 },
+  { date: 'May 19', automated: 160, human: 48 },
+  { date: 'May 20', automated: 175, human: 52 },
+  { date: 'May 21', automated: 158, human: 44 },
+  { date: 'May 22', automated: 165, human: 40 },
+  { date: 'May 23', automated: 180, human: 55 },
+  { date: 'May 24', automated: 195, human: 62 },
+  { date: 'May 25', automated: 210, human: 58 },
+  { date: 'May 26', automated: 188, human: 50 },
+  { date: 'May 27', automated: 172, human: 46 },
+  { date: 'May 28', automated: 190, human: 53 },
+  { date: 'May 29', automated: 205, human: 61 },
+  { date: 'May 30', automated: 220, human: 65 },
+  { date: 'May 31', automated: 235, human: 57 },
+  { date: 'Jun 01', automated: 215, human: 49 },
+  { date: 'Jun 02', automated: 200, human: 42 },
+  { date: 'Jun 03', automated: 228, human: 51 },
+  { date: 'Jun 04', automated: 240, font: 56, human: 56 }, // Keep human/automated simple
+  { date: 'Jun 05', automated: 265, human: 68 },
+  { date: 'Jun 06', automated: 280, human: 72 },
+  { date: 'Jun 07', automated: 255, human: 60 },
+  { date: 'Jun 08', automated: 242, human: 53 },
+  { date: 'Jun 09', automated: 260, human: 59 },
+];
+
 const StatCard = ({ title, value, change, icon: Icon, color, bg }: any) => (
   <motion.div 
     initial={{ opacity: 0, y: 20 }}
@@ -540,6 +573,13 @@ const EventLog = ({
 };
 
 export default function Dashboard({ activeAccount = "Instagram: @social_flow" }: { activeAccount?: string }) {
+  // 30 Days Performance Trends Calculations
+  const totalAutomated30d = React.useMemo(() => performanceTrendsData.reduce((sum, item) => sum + item.automated, 0), []);
+  const totalHuman30d = React.useMemo(() => performanceTrendsData.reduce((sum, item) => sum + item.human, 0), []);
+  const totalInteractions30d = totalAutomated30d + totalHuman30d;
+  const automationRate30d = React.useMemo(() => ((totalAutomated30d / (totalInteractions30d || 1)) * 100).toFixed(1), [totalAutomated30d, totalInteractions30d]);
+  const reclaimedHours = React.useMemo(() => Math.round((totalAutomated30d * 45) / 3600), [totalAutomated30d]);
+
   const [totalTriggers, setTotalTriggers] = React.useState(4285);
   const [aiAccuracy, setAiAccuracy] = React.useState(94.2);
   const [responseTime, setResponseTime] = React.useState(0.8);
@@ -1427,6 +1467,173 @@ export default function Dashboard({ activeAccount = "Instagram: @social_flow" }:
                 activeDot={{ r: 6 }} 
               />
             </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Performance Trends 30d Card */}
+      <div id="performance-trends-card" className="neural-card p-6 sm:p-10 space-y-8 text-left">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse" />
+              <h3 className="text-xl font-black text-[var(--ink)] tracking-tight italic">
+                Performance Trends (Last 30 Days)
+              </h3>
+            </div>
+            <p className="text-[10px] font-bold text-[var(--ink-muted)] uppercase tracking-widest">
+              Automated responses versus manual human-to-human interactions
+            </p>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-4 bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/30 px-3.5 py-1.5 rounded-2xl">
+              <div className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
+              <div className="leading-none text-left">
+                <span className="text-[7.5px] font-black uppercase text-[var(--ink-muted)] block">Automated</span>
+                <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 font-mono mt-0.5 block">
+                  {totalAutomated30d.toLocaleString()}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/10 px-3.5 py-1.5 rounded-2xl">
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              <div className="leading-none text-left">
+                <span className="text-[7.5px] font-black uppercase text-[var(--ink-muted)] block">Human</span>
+                <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 font-mono mt-0.5 block">
+                  {totalHuman30d.toLocaleString()}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 bg-amber-50/50 dark:bg-amber-955/20 border border-amber-100 dark:border-amber-900/20 px-3.5 py-1.5 rounded-2xl">
+              <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+              <div className="leading-none text-left">
+                <span className="text-[7.5px] font-black uppercase text-[var(--ink-muted)] block">Automation Ratio</span>
+                <span className="text-xs font-black text-amber-600 dark:text-amber-400 font-mono mt-0.5 block">
+                  {automationRate30d}%
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Visual Stats Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pb-2">
+          <div className="p-5 bg-[var(--bg)] border border-[var(--border)] rounded-2xl flex flex-col justify-between text-left">
+            <span className="text-[8px] font-black uppercase tracking-widest text-[var(--ink-muted)] mb-1">
+              Active Scaling Ratio
+            </span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-black text-[var(--ink)] italic">
+                {(totalAutomated30d / (totalHuman30d || 1)).toFixed(1)}x
+              </span>
+              <span className="text-[8px] text-indigo-500 font-bold font-mono">Efficiency Spike</span>
+            </div>
+          </div>
+
+          <div className="p-5 bg-[var(--bg)] border border-[var(--border)] rounded-2xl flex flex-col justify-between text-left">
+            <span className="text-[8px] font-black uppercase tracking-widest text-[var(--ink-muted)] mb-1">
+              Monthly Human Hand-offs
+            </span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-black text-[var(--ink)] italic">
+                {Math.round(totalHuman30d * 0.15)}
+              </span>
+              <span className="text-[8px] text-emerald-500 font-bold font-mono">-18% load</span>
+            </div>
+          </div>
+
+          <div className="p-5 bg-[var(--bg)] border border-[var(--border)] rounded-2xl flex flex-col justify-between text-left">
+            <span className="text-[8px] font-black uppercase tracking-widest text-[var(--ink-muted)] mb-1">
+              Errors Resolved Pre-Escalation
+            </span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-black text-[var(--ink)] italic">99.1%</span>
+              <span className="text-[8px] text-indigo-500 font-bold font-mono">Failsafe active</span>
+            </div>
+          </div>
+
+          <div className="p-5 bg-[var(--bg)] border border-[var(--border)] rounded-2xl flex flex-col justify-between text-left">
+            <span className="text-[8px] font-black uppercase tracking-widest text-[var(--ink-muted)] mb-1">
+              Time Reclaimed (Calculated)
+            </span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-black text-[var(--ink)] italic">
+                {reclaimedHours}h
+              </span>
+              <span className="text-[8px] text-indigo-500 font-bold font-mono">~45s per response</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Area Chart Container */}
+        <div className="h-[340px] w-full -ml-4">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={performanceTrendsData}>
+              <defs>
+                <linearGradient id="colorTrendAutomated" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#6366f1" stopOpacity={0.15}/>
+                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                </linearGradient>
+                <linearGradient id="colorTrendHuman" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.15}/>
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+              <XAxis 
+                dataKey="date" 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 9, fontWeight: 700, fill: '#94A3B8' }} 
+                dy={10}
+              />
+              <YAxis 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 9, fontWeight: 700, fill: '#94A3B8' }} 
+              />
+              <Tooltip 
+                contentStyle={{ 
+                  borderRadius: '20px', 
+                  border: 'none', 
+                  boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+                  padding: '16px',
+                  fontSize: '10px',
+                  fontWeight: 800
+                }} 
+              />
+              <Legend 
+                verticalAlign="top" 
+                height={36} 
+                iconType="circle"
+                iconSize={8}
+                wrapperStyle={{ 
+                  fontSize: '9px', 
+                  fontWeight: 900, 
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.1em'
+                }} 
+              />
+              <Area 
+                type="monotone" 
+                name="Automated Responses"
+                dataKey="automated" 
+                stroke="#6366f1" 
+                strokeWidth={3} 
+                fillOpacity={1} 
+                fill="url(#colorTrendAutomated)" 
+              />
+              <Area 
+                type="monotone" 
+                name="Human Interactions"
+                dataKey="human" 
+                stroke="#10b981" 
+                strokeWidth={3} 
+                fillOpacity={1} 
+                fill="url(#colorTrendHuman)" 
+              />
+            </AreaChart>
           </ResponsiveContainer>
         </div>
       </div>

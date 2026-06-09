@@ -86,4 +86,15 @@
   .animate-pulse-subtle {
     animation: pulseSubtle 3s ease-in-out infinite;
   }
+
+  @keyframes flowLine {
+    to {
+      stroke-dashoffset: -20;
+    }
+  }
+
+  .animate-flow-line {
+    stroke-dashoffset: 0;
+    animation: flowLine 0.8s linear infinite;
+  }
 }

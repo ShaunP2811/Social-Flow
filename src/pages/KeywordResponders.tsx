@@ -42,6 +42,8 @@ import {
   Copy,
   RefreshCw,
   HelpCircle,
+  Clock,
+  Sliders,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { motion, AnimatePresence, Reorder } from "framer-motion";
@@ -394,6 +396,14 @@ export default function KeywordResponders({ activeAccount = "Instagram: @social_
   >("All");
   const [hoveredTriggerId, setHoveredTriggerId] = useState<string | null>(null);
   const [highContrastResponders, setHighContrastResponders] = useState<string[]>([]);
+
+  // Quick Test / Live Simulator State
+  const [quickTestResponder, setQuickTestResponder] = useState<KeywordResponder | null>(null);
+  const [quickTestComment, setQuickTestComment] = useState<string>("");
+  const [quickTestUsername, setQuickTestUsername] = useState<string>("social_fan");
+  const [quickTestSimulating, setQuickTestSimulating] = useState<boolean>(false);
+  const [quickTestShowTrace, setQuickTestShowTrace] = useState<boolean>(false);
+  const [quickTestPostDelay, setQuickTestPostDelay] = useState<number>(3); // in minutes (0 means instant)
 
   // Sync with global Active Account
   const currentPlatform = activeAccount.includes("Instagram") ? "Instagram" : "Facebook";
@@ -2641,6 +2651,21 @@ export default function KeywordResponders({ activeAccount = "Instagram: @social_
                                 Notes
                               </button>
                               <button
+                                onClick={() => {
+                                  setQuickTestResponder(r);
+                                  setQuickTestUsername("social_fan");
+                                  const mainKw = r.keywords[0] || "INFO";
+                                  setQuickTestComment(`Hey there! Can you send me details about #${mainKw}? Appreciate it!`);
+                                  setQuickTestSimulating(false);
+                                  setQuickTestShowTrace(true);
+                                }}
+                                className="px-4 h-12 bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white transition-all flex items-center gap-2 rounded-2xl text-[9px] font-black uppercase tracking-widest border border-emerald-500/20 shadow-sm"
+                                title="Instantly simulate response actions for this single rule"
+                              >
+                                <PlayCircle className="w-4 h-4 text-emerald-500 hover:text-white" />
+                                <span className="hidden sm:inline">Quick Test</span>
+                              </button>
+                              <button
                                 onClick={() => handleEdit(r)}
                                 className="w-12 h-12 bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl text-indigo-500 hover:bg-indigo-600 hover:text-white transition-all flex items-center justify-center shadow-lg shadow-indigo-100 dark:shadow-none"
                               >
@@ -3330,6 +3355,10 @@ export default function KeywordResponders({ activeAccount = "Instagram: @social_
                 setSandboxToast(`Rule #${id} has been deleted successfully`);
                 setTimeout(() => setSandboxToast(null), 2500);
               }}
+              onUpdateResponder={(updated) => {
+                setResponders((prev) => prev.map((r) => r.id === updated.id ? updated : r));
+              }}
+              onReorderResponders={setResponders}
             />
           </motion.div>
         )}
@@ -5699,6 +5728,418 @@ export default function KeywordResponders({ activeAccount = "Instagram: @social_
                 </p>
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Quick Test Floating Simulator Window */}
+      <AnimatePresence>
+        {quickTestResponder && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 50, scale: 0.95 }}
+            className="fixed bottom-4 right-4 left-4 sm:left-auto sm:w-[460px] bg-slate-950/95 dark:bg-slate-950/95 text-white p-6 rounded-[2.5rem] border border-indigo-500/30 shadow-2xl backdrop-blur-xl z-[120] flex flex-col max-h-[85vh] overflow-y-auto custom-scrollbar"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-5">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-500/25">
+                  <Cpu className="w-5 h-5 text-emerald-400 animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-black tracking-tight flex items-center gap-2 italic">
+                    Quick Debug Test
+                  </h4>
+                  <p className="text-[8px] font-black uppercase tracking-wider text-slate-400">
+                    Simulator Core {quickTestResponder.platform}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setQuickTestResponder(null)}
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all active:scale-95"
+                title="Close Sim"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Simulated Settings */}
+            <div className="space-y-4 mb-5 text-left">
+              {/* Username & Input */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[8px] font-black uppercase tracking-widest text-indigo-300">
+                    Simulated Username
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 text-slate-500 text-xs font-mono">@</span>
+                    <input
+                      type="text"
+                      value={quickTestUsername}
+                      onChange={(e) => setQuickTestUsername(e.target.value.replace(/[^a-zA-Z0-9_.-]/g, ""))}
+                      className="w-full pl-6 pr-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-mono text-white focus:outline-none focus:border-indigo-500 text-left"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[8px] font-black uppercase tracking-widest text-indigo-300">
+                    Rule Status check
+                  </label>
+                  <div className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl flex items-center justify-between">
+                    <span className="text-xs font-black font-mono">
+                      {quickTestResponder.status}
+                    </span>
+                    <span className={`w-2 h-2 rounded-full ${quickTestResponder.status === 'Active' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Keyword Trigger Chips Info */}
+              <div className="space-y-1">
+                <label className="text-[8px] font-black uppercase tracking-widest text-indigo-300 block">
+                  Rule's Keyword triggers (Click to insert in comment text)
+                </label>
+                <div className="flex flex-wrap gap-1.5 p-3 rounded-2xl bg-white/5 border border-white/10">
+                  {quickTestResponder.keywords.map((kw) => (
+                    <button
+                      key={kw}
+                      onClick={() => {
+                        setQuickTestComment(`Hey! Send details about #${kw}.`);
+                        setQuickTestShowTrace(true);
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-pink-500/10 hover:bg-pink-500/25 text-pink-400 text-[9px] font-semibold tracking-tight border border-pink-500/20 flex items-center gap-1 active:scale-95 transition-transform"
+                    >
+                      <Hash className="w-2.5 h-2.5" />
+                      {kw}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Comment Text to test */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-[8px] font-black uppercase tracking-widest text-indigo-300">
+                    Inbound Sim Comment
+                  </label>
+                  <button
+                    onClick={() => {
+                      setQuickTestComment("This comment is random and doesn't match.");
+                    }}
+                    className="text-[8px] font-bold text-slate-400 hover:text-white underline"
+                  >
+                    Set Mismatch text
+                  </button>
+                </div>
+                <textarea
+                  value={quickTestComment}
+                  onChange={(e) => {
+                    setQuickTestComment(e.target.value);
+                  }}
+                  placeholder="Type simulated comment here..."
+                  className="w-full p-3 h-20 bg-white/5 border border-white/10 rounded-2xl text-xs text-white focus:outline-none focus:border-indigo-500 placeholder-slate-500 resize-none font-sans text-left"
+                />
+              </div>
+
+              {/* Simulated Anti-Spam Safety Margins Slider */}
+              <div className="space-y-3 p-4 rounded-3xl bg-indigo-950/20 border border-slate-800 text-left">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Sliders className="w-3.5 h-3.5 text-indigo-400" />
+                    <span className="text-[8px] font-black uppercase tracking-widest text-indigo-300">
+                      Simulated Anti-Spam Safety Delay
+                    </span>
+                  </div>
+                  <span className={cn(
+                    "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider font-mono border",
+                    quickTestPostDelay === 0 
+                      ? "bg-rose-500/15 text-rose-300 border-rose-500/20"
+                      : quickTestPostDelay <= 1.5
+                        ? "bg-amber-500/15 text-amber-300 border-amber-500/20"
+                        : "bg-emerald-500/15 text-emerald-300 border-emerald-500/20"
+                  )}>
+                    {quickTestPostDelay === 0 
+                      ? "Instant Send (Risky)" 
+                      : `${quickTestPostDelay} min avg delay`}
+                  </span>
+                </div>
+
+                <div className="space-y-1.5">
+                  <input
+                    type="range"
+                    min="0"
+                    max="5"
+                    step="0.5"
+                    value={quickTestPostDelay}
+                    onChange={(e) => setQuickTestPostDelay(parseFloat(e.target.value))}
+                    className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                  />
+                  <div className="flex justify-between text-[7.5px] font-black text-slate-500 uppercase tracking-widest font-mono">
+                    <span>Instant</span>
+                    <span>1m</span>
+                    <span>2m</span>
+                    <span>3m (Rec.)</span>
+                    <span>4m</span>
+                    <span>5m max</span>
+                  </div>
+                </div>
+
+                {/* Queueing explanation / offset calculator */}
+                <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5 space-y-1 text-[9.5px]">
+                  <p className="text-slate-400 font-sans leading-normal">
+                    {quickTestPostDelay === 0 ? (
+                      <span className="text-rose-400 font-bold flex items-center gap-1">
+                        ⚠️ High Flagging Risk: Instant responses trigger automated heuristic triggers on modern platforms, resulting in shadowbans.
+                      </span>
+                    ) : (
+                      <span className="text-slate-300 font-medium font-sans">
+                        🤖 Humanized Wait Intervals: Randomly distributes actual replies between{" "}
+                        <strong className="text-indigo-300 font-mono">{(quickTestPostDelay * 60 * 0.75).toFixed(0)}s</strong> and{" "}
+                        <strong className="text-indigo-300 font-mono font-bold">{(quickTestPostDelay * 60 * 1.25).toFixed(0)}s</strong> offsets safely.
+                      </span>
+                    )}
+                  </p>
+                  {quickTestPostDelay > 0 && (
+                    <div className="flex items-center gap-2 mt-1 text-[8.5px] font-black text-slate-400 font-mono">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span>BACKGROUND SCHEDULER CURRENT QUEUE DELAY SKEW: ~{(quickTestPostDelay * 60 + 13).toFixed(0)}s</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Action Simulator Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setQuickTestSimulating(true);
+                setQuickTestShowTrace(false);
+                setTimeout(() => {
+                  setQuickTestSimulating(false);
+                  setQuickTestShowTrace(true);
+                }, 900);
+              }}
+              disabled={quickTestSimulating}
+              className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-indigo-600 hover:from-emerald-600 hover:to-indigo-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-50"
+            >
+              {quickTestSimulating ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                  <span>Evaluating rule matrices...</span>
+                </>
+              ) : (
+                <>
+                  <PlayCircle className="w-4 h-4 text-white" />
+                  <span>Execute Dry-Run Simulation</span>
+                </>
+              )}
+            </button>
+
+            {/* Simulation Trace Result */}
+            {quickTestShowTrace && !quickTestSimulating && (() => {
+              const commentL = quickTestComment.toLowerCase();
+              const matchedTriggers = quickTestResponder.keywords.filter(kw => 
+                commentL.includes(kw.toLowerCase())
+              );
+              const matched = matchedTriggers.length > 0;
+              const active = quickTestResponder.status === "Active";
+              const success = matched && active;
+
+              // Substitute {username} in public reply template
+              const replyT = quickTestResponder.publicReplyTemplate || "Thank you {username}! Sent you a message.";
+              const repSub = replyT.replace(/{username}/g, `@${quickTestUsername}`);
+
+              // Substitute {username} in DM template
+              const dmT = quickTestResponder.responseTemplates?.[0] || "Thank you {username} for contacting us!";
+              const dmSub = dmT.replace(/{username}/g, `@${quickTestUsername}`);
+
+              return (
+                <div className="mt-5 space-y-4 border-t border-white/10 pt-4 animate-fadeIn text-left">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 font-sans">
+                      Dry-Run Log
+                    </span>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-wider font-sans ${
+                      success 
+                        ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/20" 
+                        : "bg-rose-500/25 text-rose-300 border border-rose-500/20"
+                    }`}>
+                      {success ? "🔥 Trigger Succeeded" : "⛔ Trigger Blocked"}
+                    </span>
+                  </div>
+
+                  {/* Trace Timeline Steps */}
+                  <div className="space-y-3 font-sans text-xs">
+                    {/* Step 1: Scan text */}
+                    <div className="flex items-start gap-2.5">
+                      <div className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 text-[10px] font-black mt-0.5 ${
+                        matched ? "bg-emerald-500 text-black animate-pulse" : "bg-rose-500 text-black"
+                      }`}>
+                        1
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold font-sans">Text Scanning Matrix</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5 font-sans leading-relaxed">
+                          {matched ? (
+                            <span>
+                              Match found! Detected keyword{" "}
+                              <span className="font-mono text-pink-400 font-bold bg-pink-500/10 px-1.5 py-0.5 rounded text-[9px]">
+                                #{matchedTriggers[0]}
+                              </span>
+                            </span>
+                          ) : (
+                            "No matching keywords found in the input text."
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Step 2: Channel Checks */}
+                    <div className="flex items-start gap-2.5">
+                      <div className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 text-[10px] font-black mt-0.5 ${
+                        active ? "bg-emerald-500 text-black font-sans" : "bg-rose-500 text-black font-sans"
+                      }`}>
+                        2
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold font-sans">Status Enforcement</p>
+                        <p className="text-[10px] text-slate-400 mt-0.5 font-sans leading-relaxed">
+                          {active ? (
+                            "Channel Status is ACTIVE. Matrix evaluation proceeding."
+                          ) : (
+                            <span className="text-amber-400 font-semibold font-sans">
+                              Rule is PAUSED. Processing halted.
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Step 3: Auto Like Comment */}
+                    {success && (
+                      <div className="flex items-start gap-2.5">
+                        <div className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 text-[10px] font-black mt-0.5 bg-indigo-500 text-white font-sans`}>
+                          3
+                        </div>
+                        <div className="flex-1 min-w-0 animate-fadeIn">
+                          <p className="font-bold flex items-center gap-1.5 font-sans">
+                            Auto-Like
+                            <span className="text-[8px] font-extrabold uppercase tracking-widest px-1.5 py-0.2 bg-indigo-500/25 text-indigo-300 rounded border border-indigo-500/15 font-sans">
+                              {quickTestResponder.autoLike ? "Enabled" : "Disabled"}
+                            </span>
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-0.5 font-sans leading-relaxed">
+                            {quickTestResponder.autoLike ? (
+                              <span>👍 Comment liked in background for high algorithm weight.</span>
+                            ) : (
+                              "Auto-like disabled. Skipping."
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Step 4: Public reply */}
+                    {success && (
+                      <div className="flex items-start gap-2.5">
+                        <div className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 text-[10px] font-black mt-0.5 bg-indigo-500 text-white font-sans`}>
+                          4
+                        </div>
+                        <div className="flex-1 min-w-0 animate-fadeIn">
+                          <p className="font-bold flex items-center gap-1.5 font-sans">
+                            Public Reply
+                            <span className="text-[8px] font-extrabold uppercase tracking-widest px-1.5 py-0.2 bg-indigo-500/25 text-indigo-300 rounded border border-indigo-500/15 font-sans">
+                              {quickTestResponder.publicReply ? "Enabled" : "Disabled"}
+                            </span>
+                          </p>
+                          {quickTestResponder.publicReply ? (
+                            <div className="mt-1 p-2.5 rounded-xl bg-white/5 border border-white/5 space-y-1 font-sans">
+                              <span className="text-[8px] font-black uppercase text-slate-500 tracking-wider font-sans">
+                                Formulated Reply
+                              </span>
+                              <p className="text-[10.5px] italic text-indigo-300 font-sans leading-relaxed">
+                                "{repSub}"
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="text-[10px] text-slate-400 mt-0.5 font-sans leading-relaxed">
+                              Public reply action skipped.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Step 5: Direct message dispatch */}
+                    {success && (
+                      <div className="flex items-start gap-2.5">
+                        <div className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 text-[10px] font-black mt-0.5 bg-indigo-500 text-white font-sans`}>
+                          5
+                        </div>
+                        <div className="flex-1 min-w-0 animate-fadeIn">
+                          <p className="font-bold font-sans">DM Dispatch Core</p>
+                          <div className="mt-1 p-2.5 rounded-xl bg-slate-900 border border-white/10 space-y-1 font-sans">
+                            <span className="text-[8px] font-black uppercase text-slate-500 tracking-wider font-sans">
+                              Dispatched Message
+                            </span>
+                            <p className="text-[10.5px] italic text-indigo-200 font-sans leading-relaxed">
+                              "{dmSub}"
+                            </p>
+                          </div>
+                          {quickTestResponder.responseTemplates && quickTestResponder.responseTemplates.length > 1 && (
+                            <p className="text-[8.5px] text-indigo-400 mt-1 font-bold italic font-sans">
+                              💡 Loaded variation 1 of {quickTestResponder.responseTemplates.length} templates
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Step 6: Anti-Spam Safety Queue Delay */}
+                    {success && (
+                      <div className="flex items-start gap-2.5">
+                        <div className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 text-[10px] font-black mt-0.5 bg-indigo-500 text-white font-sans`}>
+                          6
+                        </div>
+                        <div className="flex-1 min-w-0 animate-fadeIn">
+                          <p className="font-bold flex items-center gap-1.5 font-sans">
+                            Anti-Spam Delay Engine
+                            {quickTestPostDelay === 0 ? (
+                              <span className="text-[8px] font-extrabold uppercase tracking-widest px-1.5 py-0.2 bg-rose-500/25 text-rose-300 rounded border border-rose-500/15 font-sans">
+                                Warning Range
+                              </span>
+                            ) : (
+                              <span className="text-[8px] font-extrabold uppercase tracking-widest px-1.5 py-0.2 bg-emerald-500/25 text-emerald-300 rounded border border-emerald-500/15 font-sans">
+                                Optimal Safety margin active
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-0.5 font-sans leading-relaxed">
+                            {quickTestPostDelay === 0 ? (
+                              <span className="text-rose-400 font-medium">
+                                🚫 <strong>CRITICAL FAILSAFE WARNING:</strong> Instant delivery triggered. High probability of platform trigger rate limit blockade / bot account tagging profile restriction checks on real accounts due to unhumanized frequency bursts!
+                              </span>
+                            ) : (
+                              <span>
+                                🛡️ Scheduled safety queuing margin. Calculated safe delivery offset of{" "}
+                                <strong className="text-indigo-300 font-sans font-extrabold text-[11px]">
+                                  {(quickTestPostDelay * 60 + 13).toFixed(0)} seconds
+                                </strong>{" "}
+                                will be randomized and set before dispatching. This distributes request bursts and keeps automated responses 100% compliant with natural human interaction rates.
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </motion.div>
         )}
       </AnimatePresence>
